@@ -11,6 +11,8 @@ from typing import Any
 from src.core.config import get_settings
 from src.core.redis import RedisCache, cache
 
+from .database_health_monitor import health_monitor
+
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
@@ -21,6 +23,7 @@ class ComplianceCacheService:
     def __init__(self, cache_client: RedisCache = cache):
         self.cache = cache_client
         self.key_prefix = "compliance"
+        self.connection_health_check_interval = 300  # 5 minutes
 
     def _generate_compliance_key(self, property_id: int, compliance_type: str) -> str:
         """Generate cache key for compliance data."""
@@ -33,16 +36,33 @@ class ComplianceCacheService:
     async def get_compliance_score(
         self, property_id: int, compliance_type: str
     ) -> dict[str, Any] | None:
-        """Get compliance score from cache."""
+        """Get compliance score from cache with connection health monitoring."""
         key = self._generate_compliance_key(property_id, compliance_type)
-        result = await self.cache.get(key)
 
-        if result:
-            logger.debug(f"Cache HIT for compliance score: {key}")
-            return result
+        # Check database health before expensive fallback operations
+        try:
+            result = await self.cache.get(key)
 
-        logger.debug(f"Cache MISS for compliance score: {key}")
-        return None
+            if result:
+                logger.debug(f"Cache HIT for compliance score: {key}")
+
+                # Update cache access metrics
+                await self._record_cache_access("compliance_score", "hit")
+                return result
+
+            logger.debug(f"Cache MISS for compliance score: {key}")
+            await self._record_cache_access("compliance_score", "miss")
+
+            # If cache miss and database is healthy, consider warming cache
+            if await self._should_warm_cache():
+                await self._schedule_cache_warming(property_id, compliance_type)
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Cache access error for compliance score {key}: {e}")
+            await self._record_cache_access("compliance_score", "error")
+            return None
 
     async def set_compliance_score(
         self,
@@ -51,7 +71,7 @@ class ComplianceCacheService:
         score_data: dict[str, Any],
         use_long_ttl: bool = False,
     ) -> bool:
-        """Cache compliance score with appropriate TTL based on data type."""
+        """Cache compliance score with appropriate TTL and connection health monitoring."""
         key = self._generate_compliance_key(property_id, compliance_type)
 
         # Use long TTL for stable compliance metrics, short TTL for dynamic data
@@ -61,21 +81,33 @@ class ComplianceCacheService:
             else settings.cache_ttl_compliance_short
         )
 
-        # Add cache metadata
+        # Add cache metadata with connection health info
         cache_data = {
             **score_data,
             "_cached_at": datetime.utcnow().isoformat(),
             "_cache_ttl": ttl,
             "_compliance_type": compliance_type,
+            "_database_health": await self._get_database_health_summary(),
         }
 
-        success = await self.cache.set(key, cache_data, expire=ttl)
-        if success:
-            logger.info(
-                f"Cached compliance score for property {property_id}, "
-                f"type: {compliance_type}, TTL: {ttl}s"
-            )
-        return success
+        try:
+            success = await self.cache.set(key, cache_data, expire=ttl)
+
+            if success:
+                logger.info(
+                    f"Cached compliance score for property {property_id}, "
+                    f"type: {compliance_type}, TTL: {ttl}s"
+                )
+                await self._record_cache_access("compliance_score", "write")
+            else:
+                await self._record_cache_access("compliance_score", "write_error")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Failed to cache compliance score {key}: {e}")
+            await self._record_cache_access("compliance_score", "write_error")
+            return False
 
     async def get_tier_classification(self, property_id: int) -> dict[str, Any] | None:
         """Get tier classification from cache."""
@@ -133,16 +165,87 @@ class ComplianceCacheService:
         return mapped_results
 
     async def invalidate_property_compliance(self, property_id: int) -> int:
-        """Invalidate all compliance cache entries for a property."""
+        """Invalidate all compliance cache entries for a property with health monitoring."""
         pattern = f"{self.key_prefix}:*:{property_id}"
-        deleted_count = await self.cache.delete_pattern(pattern)
 
-        if deleted_count > 0:
-            logger.info(
-                f"Invalidated {deleted_count} compliance cache entries for property {property_id}"
+        try:
+            deleted_count = await self.cache.delete_pattern(pattern)
+
+            if deleted_count > 0:
+                logger.info(
+                    f"Invalidated {deleted_count} compliance cache entries for property {property_id}"
+                )
+                await self._record_cache_access("compliance_score", "invalidate")
+
+            return deleted_count
+
+        except Exception as e:
+            logger.error(
+                f"Failed to invalidate compliance cache for property {property_id}: {e}"
+            )
+            await self._record_cache_access("compliance_score", "invalidate_error")
+            return 0
+
+    async def _record_cache_access(self, operation_type: str, access_type: str):
+        """Record cache access metrics for monitoring."""
+        try:
+            metrics_key = f"cache_metrics:{operation_type}:{access_type}"
+            await self.cache.increment(metrics_key)
+
+            # Also record in health monitor if available
+            if hasattr(health_monitor, "record_cache_metric"):
+                await health_monitor.record_cache_metric(operation_type, access_type)
+
+        except Exception as e:
+            logger.error(f"Failed to record cache access metric: {e}")
+
+    async def _get_database_health_summary(self) -> dict[str, Any]:
+        """Get current database health summary for cache metadata."""
+        try:
+            # Get cached health report to avoid expensive operations
+            from .database_health_monitor import get_cached_health_report
+
+            health_report = await get_cached_health_report()
+
+            if health_report:
+                return {
+                    "status": health_report.get("overall_status", "unknown"),
+                    "timestamp": health_report.get(
+                        "timestamp", datetime.utcnow().isoformat()
+                    ),
+                }
+            else:
+                return {"status": "unknown", "timestamp": datetime.utcnow().isoformat()}
+
+        except Exception as e:
+            logger.debug(f"Failed to get database health summary: {e}")
+            return {"status": "unknown", "timestamp": datetime.utcnow().isoformat()}
+
+    async def _should_warm_cache(self) -> bool:
+        """Determine if cache warming should be triggered based on database health."""
+        try:
+            if not settings.cache_warming_enabled:
+                return False
+
+            health_summary = await self._get_database_health_summary()
+
+            # Only warm cache if database is healthy
+            return health_summary.get("status") == "healthy"
+
+        except Exception:
+            return False
+
+    async def _schedule_cache_warming(self, property_id: int, compliance_type: str):
+        """Schedule cache warming for compliance data."""
+        try:
+            # This would typically queue a background task
+            # For now, just log the intent
+            logger.debug(
+                f"Scheduling cache warming for property {property_id}, type {compliance_type}"
             )
 
-        return deleted_count
+        except Exception as e:
+            logger.error(f"Failed to schedule cache warming: {e}")
 
 
 class SessionCacheService:
@@ -506,8 +609,48 @@ class PropertyLookupCacheService:
         return mapped_results
 
 
-# Global cache service instances
+# Enhanced cache service integration
+async def integrate_cache_with_database_monitoring():
+    """Integrate cache services with database monitoring."""
+    try:
+        # Cache database health metrics for cache services
+        from .database_health_monitor import get_cached_health_report
+
+        health_report = await get_cached_health_report()
+
+        if health_report:
+            cache_integration_key = "cache:database_integration"
+            await cache.set(
+                cache_integration_key,
+                {
+                    "database_health": health_report.get("overall_status"),
+                    "last_updated": datetime.utcnow().isoformat(),
+                    "cache_warming_enabled": settings.cache_warming_enabled,
+                    "performance_metrics_enabled": settings.performance_metrics_enabled,
+                },
+                expire=300,  # 5 minutes
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to integrate cache with database monitoring: {e}")
+
+
+# Global cache service instances with enhanced monitoring
 compliance_cache = ComplianceCacheService()
 session_cache = SessionCacheService()
 foia_cache = FOIACacheService()
 property_lookup_cache = PropertyLookupCacheService()
+
+
+# Background task to maintain cache-database integration
+async def maintain_cache_database_integration():
+    """Background task to maintain cache-database integration."""
+    import asyncio
+
+    while True:
+        try:
+            await integrate_cache_with_database_monitoring()
+            await asyncio.sleep(300)  # Run every 5 minutes
+        except Exception as e:
+            logger.error(f"Error in cache-database integration maintenance: {e}")
+            await asyncio.sleep(60)  # Retry after 1 minute on error

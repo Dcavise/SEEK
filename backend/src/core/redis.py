@@ -2,6 +2,7 @@
 Redis configuration and connection management for microschool property intelligence platform.
 """
 
+import builtins
 import json
 import logging
 import time
@@ -198,7 +199,7 @@ class RedisCache:
             logger.error(f"Cache SADD error for key {key}: {e}")
             return 0
 
-    async def get_set_members(self, key: str) -> set[str]:
+    async def get_set_members(self, key: str) -> builtins.set[str]:
         """Get all members of a set from cache."""
         try:
             return await self.client.smembers(key)
@@ -244,4 +245,6 @@ cache = RedisCache()
 async def get_redis_client() -> redis.Redis:
     """Get Redis client instance."""
     return redis_client
+
+
 # type: ignore

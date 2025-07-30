@@ -1,5 +1,8 @@
 """
 Database configuration and session management.
+
+Legacy database module - use database_manager.py for new implementations.
+This module provides backward compatibility and simple session management.
 """
 
 from collections.abc import AsyncGenerator
@@ -10,6 +13,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 
 from .config import get_settings
+from .database_manager import QueryType, connection_manager
 
 settings = get_settings()
 
@@ -58,19 +62,16 @@ class Base(DeclarativeBase):
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Dependency to get database session.
+    Legacy dependency to get database session.
+
+    For new implementations, use database_manager.get_db_session() with QueryType.
 
     Yields:
         AsyncSession: Database session instance
     """
-    async with async_session_factory() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    # Use new connection manager for better performance and monitoring
+    async with connection_manager.get_session(query_type=QueryType.READ) as session:
+        yield session
 
 
 async def check_database_connectivity() -> bool:
@@ -81,7 +82,7 @@ async def check_database_connectivity() -> bool:
         bool: True if connection is successful, False otherwise
     """
     try:
-        async with async_session_factory() as session:
+        async with connection_manager.get_session() as session:
             result = await session.execute(text("SELECT 1"))
             return result.scalar() == 1
     except Exception:
@@ -96,7 +97,7 @@ async def check_postgis_extension() -> bool:
         bool: True if PostGIS is available, False otherwise
     """
     try:
-        async with async_session_factory() as session:
+        async with connection_manager.get_session() as session:
             result = await session.execute(
                 text(
                     "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'postgis')"
@@ -111,38 +112,12 @@ async def get_database_info() -> dict:
     """
     Get database connection and configuration information.
 
+    Returns comprehensive information including connection manager metrics.
+
     Returns:
-        dict: Database information including version, extensions, etc.
+        dict: Database information including version, extensions, metrics, etc.
     """
-    try:
-        async with async_session_factory() as session:
-            # Get PostgreSQL version
-            pg_version_result = await session.execute(text("SELECT version()"))
-            pg_version = pg_version_result.scalar()
+    # Use the enhanced database manager for comprehensive info
+    from .database_manager import get_database_info as get_enhanced_info
 
-            # Get PostGIS version if available
-            postgis_version = None
-            try:
-                postgis_result = await session.execute(text("SELECT PostGIS_Version()"))
-                postgis_version = postgis_result.scalar()
-            except Exception:
-                pass
-
-            # Get database size
-            db_size_result = await session.execute(
-                text("SELECT pg_size_pretty(pg_database_size(current_database()))")
-            )
-            db_size = db_size_result.scalar()
-
-            return {
-                "connected": True,
-                "postgresql_version": pg_version,
-                "postgis_version": postgis_version,
-                "database_size": db_size,
-                "application_name": settings.app_name,
-            }
-    except Exception as e:
-        return {
-            "connected": False,
-            "error": str(e),
-        }
+    return await get_enhanced_info()

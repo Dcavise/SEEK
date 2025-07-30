@@ -34,22 +34,102 @@ class Settings(BaseSettings):  # type: ignore[misc]
     port: int = Field(default=8000, description="Server port")
     reload: bool = Field(default=False, description="Auto-reload on code changes")
 
-    # Database settings
+    # Database settings - Primary (Write) Connection
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:Logistimatics123%21@db.goowadpoiciscdcxpwtm.supabase.co:5432/postgres",  # pragma: allowlist secret
-        description="Database connection URL",
+        description="Primary database connection URL (write operations)",
     )
     database_echo: bool = Field(
         default=False, description="Echo SQL queries to console"
     )
-    database_pool_size: int = Field(
-        default=10, description="Database connection pool size"
+
+    # Read Replica Configuration
+    database_read_url: str | None = Field(
+        default=None,
+        description="Read replica database URL for query optimization",
     )
-    database_max_overflow: int = Field(
-        default=20, description="Database connection pool max overflow"
+    enable_read_write_splitting: bool = Field(
+        default=False,
+        description="Enable read/write splitting for performance optimization",
     )
+
+    # Connection Pool Settings - Write Pool (Primary)
+    database_write_pool_size: int = Field(
+        default=15, description="Write database connection pool size for FOIA ingestion"
+    )
+    database_write_max_overflow: int = Field(
+        default=25, description="Write database connection pool max overflow"
+    )
+
+    # Connection Pool Settings - Read Pool (Replicas)
+    database_read_pool_size: int = Field(
+        default=30,
+        description="Read database connection pool size for property lookups",
+    )
+    database_read_max_overflow: int = Field(
+        default=50, description="Read database connection pool max overflow"
+    )
+
+    # ETL and Bulk Operations Pool
+    database_etl_pool_size: int = Field(
+        default=10, description="ETL connection pool size for 15M+ record processing"
+    )
+    database_etl_max_overflow: int = Field(
+        default=15, description="ETL connection pool max overflow"
+    )
+
+    # Connection Management
     database_timeout: int = Field(
         default=30, description="Database query timeout in seconds"
+    )
+    database_pool_recycle: int = Field(
+        default=3600, description="Connection pool recycle time in seconds"
+    )
+    database_pool_pre_ping: bool = Field(
+        default=True, description="Verify connections before use"
+    )
+    database_pool_reset_on_return: str = Field(
+        default="commit", description="Pool reset behavior (commit, rollback, none)"
+    )
+
+    # Performance Thresholds
+    property_lookup_max_response_time_ms: int = Field(
+        default=500, description="Maximum property lookup response time in milliseconds"
+    )
+    compliance_scoring_max_response_time_ms: int = Field(
+        default=100,
+        description="Maximum compliance scoring response time in milliseconds",
+    )
+    etl_batch_processing_timeout_minutes: int = Field(
+        default=30, description="Maximum ETL batch processing timeout in minutes"
+    )
+
+    # Health Monitoring
+    database_health_check_interval: int = Field(
+        default=30, description="Database health check interval in seconds"
+    )
+    slow_query_threshold_ms: int = Field(
+        default=1000, description="Slow query threshold in milliseconds"
+    )
+    connection_pool_warning_threshold: float = Field(
+        default=0.8, description="Connection pool usage warning threshold (0.0-1.0)"
+    )
+
+    # Failover Configuration
+    enable_connection_failover: bool = Field(
+        default=True, description="Enable automatic connection failover"
+    )
+    failover_retry_attempts: int = Field(
+        default=3, description="Number of failover retry attempts"
+    )
+    failover_retry_delay: int = Field(
+        default=5, description="Delay between failover retries in seconds"
+    )
+    circuit_breaker_failure_threshold: int = Field(
+        default=5, description="Circuit breaker failure threshold"
+    )
+    circuit_breaker_timeout: int = Field(
+        default=60, description="Circuit breaker timeout in seconds"
     )
 
     # Redis settings

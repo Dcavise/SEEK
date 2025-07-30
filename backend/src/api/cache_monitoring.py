@@ -3,7 +3,7 @@ FastAPI endpoints for Redis cache monitoring and management.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -23,7 +23,7 @@ class CacheHealthResponse(BaseModel):
 
     status: str
     timestamp: str
-    checks: dict[str, Any]
+    checks: Dict[str, Any]
     error: str | None = None
 
 
@@ -50,12 +50,12 @@ class InvalidationRequest(BaseModel):
 class WarmingRequest(BaseModel):
     """Cache warming request model."""
 
-    property_ids: list[int]
-    compliance_types: list[str] = ["zoning", "safety", "accessibility"]
+    property_ids: List[int]
+    compliance_types: List[str] = ["zoning", "safety", "accessibility"]
 
 
 @router.get("/health", response_model=CacheHealthResponse)
-async def get_cache_health():
+async def get_cache_health() -> CacheHealthResponse:
     """Get comprehensive Redis cache health status."""
     try:
         health_data = await redis_monitoring.health_check()
@@ -67,7 +67,7 @@ async def get_cache_health():
 
 
 @router.get("/metrics", response_model=CacheMetricsResponse)
-async def get_cache_metrics():
+async def get_cache_metrics() -> CacheMetricsResponse:
     """Get current cache performance metrics."""
     try:
         metrics = await redis_monitoring.get_current_metrics()
@@ -92,7 +92,7 @@ async def get_metrics_history(
     hours: int = Query(
         default=24, ge=1, le=168, description="Hours of history to retrieve"
     ),
-):
+) -> Dict[str, Any]:
     """Get historical cache performance metrics."""
     try:
         history = await redis_monitoring.get_performance_history(hours=hours)
@@ -113,7 +113,7 @@ async def get_cache_alerts(
         default=24, ge=1, le=168, description="Hours of alerts to retrieve"
     ),
     severity: str | None = Query(default=None, description="Filter by severity level"),
-):
+) -> Dict[str, Any]:
     """Get recent cache performance alerts."""
     try:
         alerts = await redis_monitoring.get_recent_alerts(hours=hours)
@@ -134,7 +134,7 @@ async def get_cache_alerts(
 
 
 @router.get("/stats/invalidation")
-async def get_invalidation_stats():
+async def get_invalidation_stats() -> Dict[str, Any]:
     """Get cache invalidation statistics."""
     try:
         stats = await cache_invalidation.get_invalidation_stats()
@@ -148,13 +148,13 @@ async def get_invalidation_stats():
 @router.post("/invalidate/property/{property_id}")
 async def invalidate_property_cache(
     property_id: int,
-    compliance_types: list[str] | None = Query(
+    compliance_types: List[str] | None = Query(
         default=None, description="Specific compliance types to invalidate"
     ),
     invalidate_lookup: bool = Query(
         default=True, description="Also invalidate property lookup cache"
     ),
-):
+) -> Dict[str, Any]:
     """Invalidate cache for a specific property."""
     try:
         # Invalidate compliance cache
@@ -184,14 +184,14 @@ async def invalidate_property_cache(
 
 @router.post("/invalidate/bulk")
 async def bulk_invalidate_properties(
-    property_ids: list[int],
+    property_ids: List[int],
     invalidate_compliance: bool = Query(
         default=True, description="Invalidate compliance cache"
     ),
     invalidate_lookup: bool = Query(
         default=True, description="Invalidate property lookup cache"
     ),
-):
+) -> Dict[str, Any]:
     """Bulk invalidate cache for multiple properties."""
     try:
         if len(property_ids) > 1000:
@@ -211,7 +211,7 @@ async def bulk_invalidate_properties(
 
 
 @router.post("/invalidate/pattern")
-async def invalidate_by_pattern(request: InvalidationRequest):
+async def invalidate_by_pattern(request: InvalidationRequest) -> Dict[str, Any]:
     """Manually invalidate cache entries by pattern (admin use)."""
     try:
         # Validate pattern to prevent accidental deletion of all cache
@@ -247,7 +247,7 @@ async def invalidate_foia_cache(
     operation: str | None = Query(
         default=None, description="Specific operation to invalidate"
     ),
-):
+) -> Dict[str, Any]:
     """Invalidate FOIA processing cache."""
     try:
         deleted = await cache_invalidation.invalidate_foia_processing(
@@ -272,7 +272,7 @@ async def invalidate_user_cache(
     reason: str = Query(
         default="manual_invalidation", description="Reason for invalidation"
     ),
-):
+) -> Dict[str, Any]:
     """Invalidate cache for a specific user (sessions, roles)."""
     try:
         deleted = await cache_invalidation.invalidate_user_sessions(user_id, reason)
@@ -290,7 +290,7 @@ async def invalidate_user_cache(
 
 
 @router.post("/warm/compliance")
-async def warm_compliance_cache(request: WarmingRequest):
+async def warm_compliance_cache(request: WarmingRequest) -> Dict[str, Any]:
     """Pre-warm compliance cache for frequently accessed properties."""
     try:
         if len(request.property_ids) > 500:
@@ -321,7 +321,7 @@ async def scheduled_cleanup(
     max_age_hours: int = Query(
         default=24, ge=1, le=168, description="Maximum age of entries to clean up"
     ),
-):
+) -> Dict[str, Any]:
     """Perform scheduled cleanup of expired cache entries."""
     try:
         stats = await cache_invalidation.scheduled_cleanup(max_age_hours)
@@ -338,7 +338,7 @@ async def scheduled_cleanup(
 
 
 @router.get("/info")
-async def get_cache_info():
+async def get_cache_info() -> Dict[str, Any]:
     """Get general cache configuration and status information."""
     try:
         from src.core.config import get_settings
@@ -367,7 +367,7 @@ async def get_cache_info():
 
 
 @router.post("/reset-metrics")
-async def reset_performance_metrics():
+async def reset_performance_metrics() -> Dict[str, Any]:
     """Reset performance metrics counters (admin use)."""
     try:
         await redis_monitoring.reset_metrics()
@@ -380,4 +380,3 @@ async def reset_performance_metrics():
         raise HTTPException(
             status_code=500, detail=f"Failed to reset metrics: {str(e)}"
         )
-# type: ignore
