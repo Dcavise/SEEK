@@ -8,33 +8,29 @@ for the microschool property intelligence platform.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from ..core.config import get_settings
 from ..core.security import (
     TokenData,
-    get_current_user,
+    rate_limit_dependency,
+    require_database_admin,
     require_monitoring,
     require_monitoring_admin,
-    require_database_admin,
-    rate_limit_dependency,
 )
 from ..services.database_connection_manager import (
     ConnectionType,
     PerformanceMetrics,
     PoolType,
-    connection_manager,
 )
 from ..services.database_health_monitor import (
     DatabaseHealthReport,
     get_cached_health_report,
     get_database_health,
-    health_monitor,
 )
-from ..services.database_resilience import resilience_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -54,7 +50,7 @@ class ConnectionPoolStatus(BaseModel):
     total_connections: int
     utilization_percent: float
     circuit_breaker_state: str
-    performance_metrics: Dict[str, Any]
+    performance_metrics: dict[str, Any]
 
 
 class DatabaseHealthResponse(BaseModel):
@@ -62,28 +58,28 @@ class DatabaseHealthResponse(BaseModel):
 
     overall_status: str
     timestamp: datetime
-    connection_pools: List[ConnectionPoolStatus]
-    performance_summary: Dict[str, Any]
-    recommendations: List[str]
-    alerts: List[str]
-    diagnostics: Dict[str, Any] | None = None
+    connection_pools: list[ConnectionPoolStatus]
+    performance_summary: dict[str, Any]
+    recommendations: list[str]
+    alerts: list[str]
+    diagnostics: dict[str, Any] | None = None
 
 
 class PerformanceMetricsResponse(BaseModel):
     """Performance metrics response model."""
 
     timestamp: datetime
-    pool_metrics: Dict[str, PerformanceMetrics]
-    summary: Dict[str, Any]
-    trends: Dict[str, Any] | None = None
+    pool_metrics: dict[str, PerformanceMetrics]
+    summary: dict[str, Any]
+    trends: dict[str, Any] | None = None
 
 
 class ResilienceStatsResponse(BaseModel):
     """Resilience statistics response model."""
 
-    operation_stats: Dict[str, Dict[str, Any]]
-    circuit_breaker_states: Dict[str, Any]
-    summary: Dict[str, Any]
+    operation_stats: dict[str, dict[str, Any]]
+    circuit_breaker_states: dict[str, Any]
+    summary: dict[str, Any]
 
 
 # Import dependency functions
@@ -251,7 +247,9 @@ async def get_performance_metrics(
 
 
 @router.get("/pools/{pool_type}/health")
-async def get_pool_health(pool_type: str, conn_manager: Any = Depends(get_connection_manager)) -> Dict[str, Any]:
+async def get_pool_health(
+    pool_type: str, conn_manager: Any = Depends(get_connection_manager)
+) -> dict[str, Any]:
     """
     Get health status for a specific connection pool.
 
@@ -290,7 +288,9 @@ async def get_pool_health(pool_type: str, conn_manager: Any = Depends(get_connec
 
 # Resilience monitoring endpoints
 @router.get("/resilience", response_model=ResilienceStatsResponse)
-async def get_resilience_statistics(resilience_svc: Any = Depends(get_resilience_service)) -> ResilienceStatsResponse:
+async def get_resilience_statistics(
+    resilience_svc: Any = Depends(get_resilience_service),
+) -> ResilienceStatsResponse:
     """
     Get comprehensive resilience statistics including circuit breaker states,
     retry patterns, and fallback usage.
@@ -315,7 +315,7 @@ async def reset_circuit_breaker(
     resilience_svc: Any = Depends(get_resilience_service_dependency),
     current_user: TokenData = Depends(require_database_admin),
     _: None = Depends(rate_limit_dependency),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Manually reset a circuit breaker for a specific operation context.
 
@@ -349,7 +349,7 @@ async def reset_circuit_breaker(
 
 # ETL monitoring endpoints
 @router.get("/etl/operations")
-async def get_etl_operations_status() -> Dict[str, Any]:
+async def get_etl_operations_status() -> dict[str, Any]:
     """
     Get status of recent ETL operations and performance metrics.
     """
@@ -384,7 +384,7 @@ async def start_monitoring(
     health_monitor_service: Any = Depends(get_database_monitor_dependency),
     current_user: TokenData = Depends(require_monitoring_admin),
     _: None = Depends(rate_limit_dependency),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Start background database monitoring.
 
@@ -413,7 +413,7 @@ async def stop_monitoring(
     health_monitor_service: Any = Depends(get_database_monitor_dependency),
     current_user: TokenData = Depends(require_monitoring_admin),
     _: None = Depends(rate_limit_dependency),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Stop background database monitoring.
     """
@@ -440,7 +440,7 @@ async def close_all_connections(
     conn_manager: Any = Depends(get_connection_manager_dependency),
     current_user: TokenData = Depends(require_database_admin),
     _: None = Depends(rate_limit_dependency),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Close all database connections (use with caution).
 
@@ -472,7 +472,7 @@ async def close_all_connections(
 
 # Configuration endpoints
 @router.get("/config")
-async def get_database_configuration() -> Dict[str, Any]:
+async def get_database_configuration() -> dict[str, Any]:
     """
     Get current database configuration settings.
     """
@@ -534,7 +534,7 @@ async def get_database_configuration() -> Dict[str, Any]:
 async def test_connection_type(
     connection_type: str,
     query: str = Query("SELECT 1 as test", description="Test query to execute"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Test a specific connection type with a query.
 

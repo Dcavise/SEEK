@@ -9,14 +9,18 @@ Provides high-performance endpoints for:
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from ..core.database_monitoring import (
+    get_database_alerts as core_get_database_alerts,
+)
+from ..core.database_monitoring import (
+    get_database_health_report,
+)
 from ..core.security import rate_limit_dependency
-
-from ..core.database_monitoring import get_database_alerts as core_get_database_alerts, get_database_health_report
 from ..services.database_services import (
     compliance_scoring_service,
     etl_pipeline_service,
@@ -32,35 +36,23 @@ class PropertyLookupRequest(BaseModel):
     """Property lookup request model."""
 
     latitude: float = Field(
-        ..., 
-        ge=-90, 
-        le=90, 
-        description="Latitude coordinate (-90 to 90)"
+        ..., ge=-90, le=90, description="Latitude coordinate (-90 to 90)"
     )
     longitude: float = Field(
-        ..., 
-        ge=-180, 
-        le=180, 
-        description="Longitude coordinate (-180 to 180)"
+        ..., ge=-180, le=180, description="Longitude coordinate (-180 to 180)"
     )
     radius_meters: float = Field(
-        default=1000, 
-        gt=0, 
-        le=50000, 
-        description="Search radius in meters (1-50000)"
+        default=1000, gt=0, le=50000, description="Search radius in meters (1-50000)"
     )
     limit: int = Field(
-        default=100, 
-        gt=0, 
-        le=500, 
-        description="Maximum number of results (1-500)"
+        default=100, gt=0, le=500, description="Maximum number of results (1-500)"
     )
 
 
 class PropertyLookupResponse(BaseModel):
     """Property lookup response model."""
 
-    properties: List[Dict[str, Any]]
+    properties: list[dict[str, Any]]
     response_time_ms: float
     count: int
     query_params: PropertyLookupRequest
@@ -78,13 +70,13 @@ class ComplianceScoreResponse(BaseModel):
     property_id: int
     compliance_score: float
     response_time_ms: float
-    details: Dict[str, Any]
+    details: dict[str, Any]
 
 
 class FOIAIngestionRequest(BaseModel):
     """FOIA data ingestion request model."""
 
-    compliance_records: List[Dict[str, Any]] = Field(
+    compliance_records: list[dict[str, Any]] = Field(
         ..., description="Compliance data records"
     )
     source: str = Field(..., description="Data source identifier")
@@ -133,7 +125,7 @@ async def lookup_properties(
 
 
 @router.get("/property/{property_id}")
-async def get_property_details(property_id: int) -> Dict[str, Any]:
+async def get_property_details(property_id: int) -> dict[str, Any]:
     """Get detailed property information by ID."""
     try:
         property_data = await property_lookup_service.get_property_by_id(property_id)
@@ -155,11 +147,11 @@ async def get_property_details(property_id: int) -> Dict[str, Any]:
 
 @router.post("/property/bulk-lookup")
 async def bulk_property_lookup(
-    coordinates: List[List[float]] = Field(
+    coordinates: list[list[float]] = Field(
         ..., description="List of [latitude, longitude] pairs"
     ),
     _: None = Depends(rate_limit_dependency),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Perform bulk property lookups for multiple coordinates."""
     try:
         # Validate coordinates format
@@ -226,8 +218,8 @@ async def calculate_compliance_score(
 
 @router.post("/compliance/bulk-score")
 async def bulk_compliance_scoring(
-    property_ids: List[int] = Field(..., description="List of property IDs"),
-) -> Dict[str, Any]:
+    property_ids: list[int] = Field(..., description="List of property IDs"),
+) -> dict[str, Any]:
     """Perform bulk compliance scoring for multiple properties."""
     try:
         if len(property_ids) > 100:
@@ -257,7 +249,7 @@ async def bulk_compliance_scoring(
 @router.post("/foia/ingest")
 async def ingest_foia_data(
     request: FOIAIngestionRequest, background_tasks: BackgroundTasks
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Ingest FOIA compliance data with high-throughput write optimization.
 
@@ -293,7 +285,7 @@ async def ingest_foia_data(
 
 
 async def _process_large_foia_ingestion(
-    compliance_records: List[Dict[str, Any]], source: str
+    compliance_records: list[dict[str, Any]], source: str
 ) -> None:
     """Background task for processing large FOIA datasets."""
     try:
@@ -308,7 +300,7 @@ async def _process_large_foia_ingestion(
 @router.post("/etl/start")
 async def start_etl_pipeline(
     request: ETLPipelineRequest, background_tasks: BackgroundTasks
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Start ETL pipeline for large dataset processing.
 
@@ -351,7 +343,7 @@ async def start_etl_pipeline(
 
 
 @router.get("/etl/status/{pipeline_id}")
-async def get_etl_status(pipeline_id: str) -> Dict[str, Any]:
+async def get_etl_status(pipeline_id: str) -> dict[str, Any]:
     """Get ETL pipeline status and progress."""
     try:
         status = await etl_pipeline_service.get_pipeline_status(pipeline_id)
@@ -371,7 +363,7 @@ async def get_etl_status(pipeline_id: str) -> Dict[str, Any]:
         )
 
 
-async def _process_etl_pipeline(pipeline_id: str, dataset_info: Dict[str, Any]) -> None:
+async def _process_etl_pipeline(pipeline_id: str, dataset_info: dict[str, Any]) -> None:
     """Background task for ETL pipeline processing."""
     try:
         result = await etl_pipeline_service.process_regrid_dataset(dataset_info)
@@ -382,7 +374,7 @@ async def _process_etl_pipeline(pipeline_id: str, dataset_info: Dict[str, Any]) 
 
 # Monitoring and Health Endpoints
 @router.get("/health/comprehensive")
-async def get_comprehensive_health() -> Dict[str, Any]:
+async def get_comprehensive_health() -> dict[str, Any]:
     """Get comprehensive database health and performance report."""
     try:
         return await get_database_health_report()
@@ -393,7 +385,7 @@ async def get_comprehensive_health() -> Dict[str, Any]:
 
 
 @router.get("/alerts")
-async def get_database_alerts() -> Dict[str, Any]:
+async def get_database_alerts() -> dict[str, Any]:
     """Get active database alerts and performance warnings."""
     try:
         alerts = await core_get_database_alerts()
@@ -413,7 +405,7 @@ async def test_property_lookup_performance(
     iterations: int = Query(
         default=10, le=100, description="Number of test iterations"
     ),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Test property lookup performance with multiple iterations."""
     try:
         # Test coordinates in Austin, TX
@@ -471,7 +463,7 @@ async def test_compliance_scoring_performance(
     iterations: int = Query(
         default=10, le=100, description="Number of test iterations"
     ),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Test compliance scoring performance with multiple iterations."""
     try:
         results = []

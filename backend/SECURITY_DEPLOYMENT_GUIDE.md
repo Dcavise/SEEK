@@ -85,7 +85,7 @@ export SUPABASE_KEY="your-supabase-anon-key"
 ```python
 # Security headers automatically added:
 X-Content-Type-Options: nosniff
-X-Frame-Options: DENY  
+X-Frame-Options: DENY
 X-XSS-Protection: 1; mode=block
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 Content-Security-Policy: default-src 'self'
@@ -99,7 +99,7 @@ Content-Security-Policy: default-src 'self'
    ```bash
    # Copy example environment
    cp .env.example .env
-   
+
    # Fill in production values
    nano .env
    ```

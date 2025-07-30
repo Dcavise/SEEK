@@ -3,10 +3,11 @@ Main FastAPI application entry point.
 """
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -16,17 +17,17 @@ from .api.database_monitoring import router as database_monitoring_router
 from .api.database_operations import router as database_operations_router
 from .api.system_monitoring import router as system_monitoring_router
 from .core.config import get_settings
+from .core.database import (
+    check_postgis_extension,
+    get_database_info,
+)
+from .core.dependencies import cleanup_dependencies, get_dependency_container
 from .core.exceptions import (
     BaseAPIException,
     api_exception_handler,
     http_exception_handler,
 )
 from .core.security import add_security_headers
-from .core.database import (
-    check_postgis_extension,
-    get_database_info,
-)
-from .core.dependencies import cleanup_dependencies, get_dependency_container
 
 logger = logging.getLogger(__name__)
 
@@ -38,56 +39,60 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     container = get_dependency_container()
     connection_manager = await container.get_connection_manager()
     database_monitor = await container.get_database_monitor()
-    
+
     # Start monitoring
     try:
         await database_monitor.start_monitoring()
     except Exception as e:
         logger.warning(f"Failed to start database monitoring: {e}")
-    
+
     # Start adaptive pool management
     try:
         from .services.adaptive_pool_manager import adaptive_pool_manager
+
         await adaptive_pool_manager.start_monitoring()
     except Exception as e:
         logger.warning(f"Failed to start adaptive pool management: {e}")
-    
+
     # Start concurrency management
     try:
         from .services.concurrency_manager import concurrency_manager
+
         await concurrency_manager.start()
     except Exception as e:
         logger.warning(f"Failed to start concurrency management: {e}")
-    
+
     yield
-    
+
     # Shutdown
     try:
         await database_monitor.stop_monitoring()
     except Exception as e:
         logger.warning(f"Failed to stop database monitoring: {e}")
-    
+
     # Stop concurrency management
     try:
         from .services.concurrency_manager import concurrency_manager
+
         await concurrency_manager.stop()
     except Exception as e:
         logger.warning(f"Failed to stop concurrency management: {e}")
-    
+
     # Stop adaptive pool management
     try:
         from .services.adaptive_pool_manager import adaptive_pool_manager
+
         await adaptive_pool_manager.stop_monitoring()
     except Exception as e:
         logger.warning(f"Failed to stop adaptive pool management: {e}")
-    
+
     await cleanup_dependencies()
 
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     settings = get_settings()
-    
+
     app = FastAPI(
         title="Primer Seek Property API",
         description="Backend API for microschool property intelligence platform with comprehensive database management",
@@ -96,14 +101,13 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.is_development else None,
         redoc_url="/redoc" if settings.is_development else None,
     )
-    
+
     # Add security middleware
     if settings.enable_https_only and not settings.is_development:
         app.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=["*.yourdomain.com", "yourdomain.com"]
+            TrustedHostMiddleware, allowed_hosts=["*.yourdomain.com", "yourdomain.com"]
         )
-    
+
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -112,7 +116,7 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
     )
-    
+
     # Add security headers middleware
     @app.middleware("http")
     async def add_security_headers_middleware(request: Request, call_next):
@@ -131,7 +135,7 @@ def create_app() -> FastAPI:
     app.include_router(system_monitoring_router)
 
     @app.get("/health/performance")
-    async def health_performance() -> Dict[str, Any]:
+    async def health_performance() -> dict[str, Any]:
         """Get comprehensive performance report."""
         try:
             return await database_monitor.get_performance_report()
@@ -141,7 +145,7 @@ def create_app() -> FastAPI:
             )
 
     @app.get("/health/alerts")
-    async def health_alerts() -> Dict[str, Any]:
+    async def health_alerts() -> dict[str, Any]:
         """Get active database alerts."""
         try:
             alerts = await database_monitor.get_active_alerts()
@@ -157,7 +161,7 @@ def create_app() -> FastAPI:
             )
 
     @app.get("/")
-    async def root() -> Dict[str, Any]:
+    async def root() -> dict[str, Any]:
         """Root endpoint with system status."""
         return {
             "message": "Primer Seek Property API",
@@ -172,13 +176,13 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/health")
-    async def health() -> Dict[str, str]:
+    async def health() -> dict[str, str]:
         """Health check endpoint."""
         # Basic health check - detailed checks available at /health/database and /api/v1/cache/health
         return {"status": "healthy"}
 
     @app.get("/health/redis")
-    async def health_redis() -> Dict[str, Any]:
+    async def health_redis() -> dict[str, Any]:
         """Redis health check endpoint."""
         try:
             health_data = await redis_monitoring.health_check()
@@ -198,7 +202,7 @@ def create_app() -> FastAPI:
             )
 
     @app.get("/health/database")
-    async def health_database() -> Dict[str, Any]:
+    async def health_database() -> dict[str, Any]:
         """Comprehensive database health check with connection manager metrics."""
         try:
             db_info = await get_database_info()

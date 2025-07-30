@@ -240,9 +240,7 @@ class Settings(BaseSettings):  # type: ignore[misc]
     rate_limit_requests_per_minute: int = Field(
         default=100, description="API rate limit requests per minute"
     )
-    rate_limit_burst_size: int = Field(
-        default=20, description="Rate limit burst size"
-    )
+    rate_limit_burst_size: int = Field(default=20, description="Rate limit burst size")
 
     # Security settings
     enable_https_only: bool = Field(

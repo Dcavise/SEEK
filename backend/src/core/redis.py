@@ -247,4 +247,4 @@ async def get_redis_client() -> redis.Redis:
     return redis_client
 
 
-# type: ignore
+# type: ignore[misc,call-arg,var-annotated,assignment,union-attr,arg-type,return-value,valid-type,unused-ignore]

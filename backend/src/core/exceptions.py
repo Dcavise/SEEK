@@ -6,7 +6,7 @@ for consistent error responses across all API endpoints.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -25,13 +25,13 @@ class PrimerSeekError(Exception):
 
 class BaseAPIException(Exception):
     """Base exception class for API errors."""
-    
+
     def __init__(
         self,
         message: str,
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         self.message = message
         self.status_code = status_code
@@ -91,8 +91,8 @@ class GeospatialError(PrimerSeekError):
 # Enhanced API Exception Classes
 class APIValidationError(BaseAPIException):
     """Validation error for request data."""
-    
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -103,7 +103,7 @@ class APIValidationError(BaseAPIException):
 
 class APIAuthenticationError(BaseAPIException):
     """Authentication failed error."""
-    
+
     def __init__(self, message: str = "Authentication failed"):
         super().__init__(
             message=message,
@@ -114,7 +114,7 @@ class APIAuthenticationError(BaseAPIException):
 
 class APIAuthorizationError(BaseAPIException):
     """Authorization failed error."""
-    
+
     def __init__(self, message: str = "Insufficient permissions"):
         super().__init__(
             message=message,
@@ -125,8 +125,8 @@ class APIAuthorizationError(BaseAPIException):
 
 class APINotFoundError(BaseAPIException):
     """Resource not found error."""
-    
-    def __init__(self, message: str, resource_type: Optional[str] = None):
+
+    def __init__(self, message: str, resource_type: str | None = None):
         details = {"resource_type": resource_type} if resource_type else {}
         super().__init__(
             message=message,
@@ -138,7 +138,7 @@ class APINotFoundError(BaseAPIException):
 
 class APIRateLimitError(BaseAPIException):
     """Rate limit exceeded error."""
-    
+
     def __init__(self, message: str = "Rate limit exceeded", retry_after: int = 60):
         super().__init__(
             message=message,
@@ -150,17 +150,17 @@ class APIRateLimitError(BaseAPIException):
 
 class APIDatabaseError(BaseAPIException):
     """Database operation error."""
-    
+
     def __init__(
         self,
         message: str,
-        operation: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        operation: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         error_details = {"operation": operation} if operation else {}
         if details:
             error_details.update(details)
-            
+
         super().__init__(
             message=message,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -171,19 +171,19 @@ class APIDatabaseError(BaseAPIException):
 
 class APIPerformanceError(BaseAPIException):
     """Performance threshold exceeded error."""
-    
+
     def __init__(
         self,
         message: str,
-        threshold_ms: Optional[int] = None,
-        actual_ms: Optional[float] = None,
+        threshold_ms: int | None = None,
+        actual_ms: float | None = None,
     ):
         details = {}
         if threshold_ms:
             details["threshold_ms"] = threshold_ms
         if actual_ms:
             details["actual_ms"] = actual_ms
-            
+
         super().__init__(
             message=message,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -194,15 +194,15 @@ class APIPerformanceError(BaseAPIException):
 
 def create_error_response(
     exception: BaseAPIException,
-    request: Optional[Request] = None,
+    request: Request | None = None,
 ) -> JSONResponse:
     """
     Create standardized error response from API exception.
-    
+
     Args:
         exception: API exception instance
         request: FastAPI request object (optional)
-        
+
     Returns:
         JSON response with error details
     """
@@ -213,20 +213,20 @@ def create_error_response(
             "status_code": exception.status_code,
         }
     }
-    
+
     if exception.details:
         error_data["error"]["details"] = exception.details
-    
+
     if request:
         error_data["error"]["path"] = str(request.url.path)
         error_data["error"]["method"] = request.method
-    
+
     # Add retry information for rate limits
     headers = {}
     if isinstance(exception, APIRateLimitError):
         retry_after = exception.details.get("retry_after", 60)
         headers["Retry-After"] = str(retry_after)
-    
+
     return JSONResponse(
         status_code=exception.status_code,
         content=error_data,
@@ -234,14 +234,16 @@ def create_error_response(
     )
 
 
-async def api_exception_handler(request: Request, exc: BaseAPIException) -> JSONResponse:
+async def api_exception_handler(
+    request: Request, exc: BaseAPIException
+) -> JSONResponse:
     """
     Global exception handler for API exceptions.
-    
+
     Args:
         request: FastAPI request object
         exc: API exception instance
-        
+
     Returns:
         JSON error response
     """
@@ -256,28 +258,28 @@ async def api_exception_handler(request: Request, exc: BaseAPIException) -> JSON
             "details": exc.details,
         },
     )
-    
+
     return create_error_response(exc, request)
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """
     Global handler for FastAPI HTTPExceptions.
-    
+
     Args:
         request: FastAPI request object
         exc: HTTP exception instance
-        
+
     Returns:
         JSON error response
     """
     # Convert HTTPException to standardized format
     error_code = "HTTP_ERROR"
-    
+
     # Map common HTTP status codes to error codes
     status_code_mapping = {
         400: "BAD_REQUEST",
-        401: "UNAUTHORIZED", 
+        401: "UNAUTHORIZED",
         403: "FORBIDDEN",
         404: "NOT_FOUND",
         405: "METHOD_NOT_ALLOWED",
@@ -288,9 +290,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         503: "SERVICE_UNAVAILABLE",
         504: "GATEWAY_TIMEOUT",
     }
-    
+
     error_code = status_code_mapping.get(exc.status_code, "HTTP_ERROR")
-    
+
     error_data = {
         "error": {
             "code": error_code,
@@ -300,10 +302,10 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             "method": request.method,
         }
     }
-    
+
     # Add headers if present
     headers = getattr(exc, "headers", {}) or {}
-    
+
     logger.warning(
         f"HTTP Exception: {error_code} - {exc.detail}",
         extra={
@@ -313,7 +315,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             "method": request.method,
         },
     )
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content=error_data,
@@ -324,29 +326,29 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 def handle_database_exception(operation: str, exc: Exception) -> APIDatabaseError:
     """
     Convert database exceptions to standardized database errors.
-    
+
     Args:
         operation: Database operation being performed
         exc: Original database exception
-        
+
     Returns:
         Standardized database error
     """
     # Handle specific database exception types
     exc_type = type(exc).__name__
-    
+
     if "ConnectionError" in exc_type or "OperationalError" in exc_type:
         return APIDatabaseError(
             f"Database connection failed during {operation}: {str(exc)}",
             operation=operation,
             details={"exception_type": exc_type},
         )
-    
+
     if "TimeoutError" in exc_type:
         return APIPerformanceError(
             f"Database operation timed out during {operation}: {str(exc)}",
         )
-    
+
     # Generic database error
     return APIDatabaseError(
         f"Database operation failed during {operation}: {str(exc)}",

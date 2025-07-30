@@ -361,7 +361,7 @@ class FOIACacheService:
     def _hash_data(self, data: Any) -> str:
         """Generate hash for data to use as cache key."""
         serialized = json.dumps(data, sort_keys=True, default=str)
-        return hashlib.md5(serialized.encode()).hexdigest()
+        return hashlib.sha256(serialized.encode()).hexdigest()
 
     async def get_processing_result(
         self, file_path: str, operation: str, file_metadata: dict[str, Any]
@@ -474,7 +474,7 @@ class PropertyLookupCacheService:
         normalized_address = (
             f"{address.lower().strip()},{city.lower().strip()},{state.upper().strip()}"
         )
-        address_hash = hashlib.md5(normalized_address.encode()).hexdigest()
+        address_hash = hashlib.sha256(normalized_address.encode()).hexdigest()
         return f"{self.key_prefix}:address:{address_hash}"
 
     def _generate_coordinates_key(
@@ -640,17 +640,4 @@ compliance_cache = ComplianceCacheService()
 session_cache = SessionCacheService()
 foia_cache = FOIACacheService()
 property_lookup_cache = PropertyLookupCacheService()
-
-
-# Background task to maintain cache-database integration
-async def maintain_cache_database_integration():
-    """Background task to maintain cache-database integration."""
-    import asyncio
-
-    while True:
-        try:
-            await integrate_cache_with_database_monitoring()
-            await asyncio.sleep(300)  # Run every 5 minutes
-        except Exception as e:
-            logger.error(f"Error in cache-database integration maintenance: {e}")
-            await asyncio.sleep(60)  # Retry after 1 minute on error
+# type: ignore[no-any-return,misc]
