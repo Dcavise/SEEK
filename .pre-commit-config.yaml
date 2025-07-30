@@ -1,0 +1,217 @@
+# Pre-commit hooks configuration for Primer Seek Property Development
+# This configuration provides comprehensive code quality, security, and formatting checks
+# for both Python (backend) and TypeScript (frontend) code in the monorepo structure.
+
+repos:
+  # General hooks for file maintenance and git hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        description: Remove trailing whitespace
+      - id: end-of-file-fixer
+        description: Ensure files end with newline
+      - id: check-merge-conflict
+        description: Check for merge conflict markers
+      - id: check-added-large-files
+        description: Prevent addition of large files (>500kB)
+        args: ['--maxkb=500']
+      - id: check-yaml
+        description: Validate YAML files
+      - id: check-json
+        description: Validate JSON files
+        exclude: .*tsconfig.*\.json$
+      - id: check-toml
+        description: Validate TOML files
+      - id: check-case-conflict
+        description: Check for case conflicts
+      - id: mixed-line-ending
+        description: Replace mixed line endings
+      - id: check-executables-have-shebangs
+        description: Ensure executables have shebangs
+      - id: check-shebang-scripts-are-executable
+        description: Ensure shebang scripts are executable
+
+  # Python code formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        name: Format Python code with Black
+        description: Format Python code using Black formatter
+        files: ^backend/.*\.py$
+        args: [--line-length=88, --target-version=py312]
+
+  # Python linting and code quality with Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        name: Lint Python code with Ruff
+        description: Fast Python linter and code quality checker
+        files: ^backend/.*\.py$
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        name: Format Python code with Ruff
+        description: Fast Python formatter (Black-compatible)
+        files: ^backend/.*\.py$
+
+  # Python type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        name: Type check Python code with mypy
+        description: Static type checker for Python
+        files: ^backend/.*\.py$
+        args: [--strict, --ignore-missing-imports]
+        additional_dependencies:
+          - types-requests
+          - types-redis
+          - types-psycopg2
+
+  # Python security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        name: Security scan Python code with Bandit
+        description: Security linter for Python
+        files: ^backend/.*\.py$
+        args: [-r, -f, json, -o, bandit-report.json]
+        exclude: ^backend/tests/.*$
+
+  # Python dependency security scanning (disabled until Poetry is available)
+  # - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+  #   rev: v1.3.2
+  #   hooks:
+  #     - id: python-safety-dependencies-check
+  #       name: Check Python dependencies for security vulnerabilities
+  #       description: Check Python dependencies against safety database
+  #       files: ^backend/pyproject\.toml$
+
+  # TypeScript/JavaScript linting with ESLint
+  - repo: local
+    hooks:
+      - id: eslint
+        name: Lint TypeScript/JavaScript with ESLint
+        description: Linter for TypeScript and JavaScript
+        entry: bash -c 'cd frontend && pnpm exec eslint --fix --max-warnings=0 .'
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
+
+  # TypeScript/JavaScript formatting with Prettier (using local installation)
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Format TypeScript/JavaScript with Prettier
+        description: Code formatter for TypeScript and JavaScript
+        entry: bash -c 'cd frontend && npx prettier --write "**/*.{ts,tsx,js,jsx,json,css,scss,md}"'
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx|json|css|scss|md)$
+        pass_filenames: false
+
+      - id: typescript-check
+        name: TypeScript compiler check
+        description: Run TypeScript compiler to check for type errors
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # Secret detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets in code
+        description: Detect secrets, keys, and sensitive information
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            .*\.lock$|
+            .*\.min\.js$|
+            .*\.map$|
+            package-lock\.json$|
+            yarn\.lock$|
+            \.secrets\.baseline$
+          )$
+
+  # Conventional commit message validation
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.2.0
+    hooks:
+      - id: conventional-pre-commit
+        name: Validate conventional commit messages
+        description: Ensure commit messages follow conventional commit format
+        stages: [commit-msg]
+        args: [optional-scope, feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert]
+
+  # Docker and container security
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        name: Lint Dockerfiles
+        description: Dockerfile linter for best practices and security
+        files: Dockerfile.*
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        name: Lint shell scripts
+        description: Static analysis tool for shell scripts
+        files: ^scripts/.*\.(sh|bash)$
+
+  # Additional local hooks for project-specific tasks
+  - repo: local
+    hooks:
+      - id: check-shared-types
+        name: Validate shared TypeScript types
+        description: Ensure shared types are valid TypeScript
+        entry: bash -c 'cd shared && npx tsc --noEmit --skipLibCheck'
+        language: system
+        files: ^shared/.*\.ts$
+        pass_filenames: false
+
+      - id: package-json-lint
+        name: Validate package.json files
+        description: Check package.json for common issues
+        entry: bash -c 'find . -name "package.json" -not -path "./node_modules/*" -exec npm pkg fix {} \;'
+        language: system
+        files: package\.json$
+        pass_filenames: false
+
+# Configuration for specific tools
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
+
+# Global excludes - files/patterns to skip for all hooks
+exclude: |
+  (?x)^(
+    .*\.lock$|
+    .*\.min\.js$|
+    .*\.map$|
+    .*/__pycache__/.*|
+    .*/\.git/.*|
+    .*/node_modules/.*|
+    .*/dist/.*|
+    .*/build/.*|
+    .*\.egg-info/.*|
+    .*\.pyc$|
+    .*\.pyo$|
+    .*\.coverage$|
+    .*/coverage/.*
+  )$

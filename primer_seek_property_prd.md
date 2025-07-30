@@ -43,8 +43,8 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 ### 2.2 Core Use Cases
 
 #### UC-001: City Property Discovery
-**Actor**: Primer Real Estate team members  
-**Goal**: Find all properties zoned by right in a specific Texas city  
+**Actor**: Primer Real Estate team members
+**Goal**: Find all properties zoned by right in a specific Texas city
 **Flow**:
 1. User searches for city name (e.g., "Austin")
 2. System displays autocomplete suggestions with property counts
@@ -53,8 +53,8 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 5. User analyzes distribution and identifies opportunities via filters.
 
 #### UC-002: Property Status Management
-**Actor**: Real Estate Team Member  
-**Goal**: Track property sourcing and acquisition pipeline  
+**Actor**: Real Estate Team Member
+**Goal**: Track property sourcing and acquisition pipeline
 **Flow**:
 1. User identifies properties of interest
 2. System allows status updates (unreviewed, reviewed, synced, unqualified)

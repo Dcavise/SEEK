@@ -435,3 +435,9 @@ secrets.json
 *.tar.gz
 *.rar
 *.7z
+
+# Pre-commit and security tools
+bandit-report.json
+.ruff_cache/
+.pre-commit-cache/
+.safety-cache/
