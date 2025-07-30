@@ -1,7 +1,7 @@
-# Primer Seek Property Development Plan
+# Primer Seek: Microschool Property Intelligence Platform
 
 ## Overview
-The Primer Seek Property sourcing system is a comprehensive platform designed to import, normalize, and visualize property data from all cities in Texas, Alabama, and Florida. The system enables the Primer Real Estate function to efficiently analyze potential property lease opportunities through a high-performance interactive mapping interface powered by DuckDB and Supabase.
+Primer Seek is a specialized property intelligence platform designed to identify and qualify viable microschool locations across Texas, Alabama, and Florida markets. The platform transforms fragmented government data into actionable property insights, enabling Primer's Real Estate team to efficiently locate the rare properties (~0.1% of market) that meet strict educational compliance requirements. The system consolidates 15+ million Regrid parcel records with targeted FOIA government data to provide compliance-first property scoring and off-market sourcing intelligence.
 
 ## 1. Project Setup
 
@@ -49,18 +49,18 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
   - @tanstack/react-virtual for virtualization
 
 ### Database Setup
-- [ ] Set up Supabase project and configure PostgreSQL database
-  - Create production and development projects
-  - Configure PostGIS extension for geospatial operations
-  - Set up database connection pooling
-  - Configure SSL and security settings
+- [x] Set up Supabase project and configure PostgreSQL database
+  - Production and development projects created
+  - PostGIS extension configured for geospatial operations
+  - Database connection pooling established
+  - SSL and security settings configured
 - [ ] Create development branch for testing
   - Set up branch-specific database instance
   - Configure automated migration testing
-  - Set up data seeding for development
+  - Set up data seeding for microschool compliance testing
 - [ ] Configure Redis instance for caching
   - Set up Redis for session caching
-  - Configure Redis for query result caching
+  - Configure Redis for FOIA data and compliance query caching
   - Set up Redis clustering for production
 
 ### CI/CD Pipeline
@@ -78,21 +78,22 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 ## 2. Backend Foundation
 
 ### Database Schema and Migrations
-- [ ] Design core database schema for property data
-  - Properties table with geospatial columns (latitude, longitude)
-  - Counties table with state relationships
-  - Cities table with county relationships
-  - Property status tracking with audit trail
+- [ ] Design microschool-focused database schema
+  - Properties table with geospatial columns and compliance attributes
+  - Compliance_data table for fire sprinkler, zoning, and occupancy data
+  - FOIA_sources table for government data tracking and freshness
+  - Property_tiers table for Tier 1/2/3 qualification classification
+  - Property_owner_intelligence table for off-market sourcing data
 - [ ] Create initial database migrations
-  - Properties table with PostGIS geometry columns
-  - Indexes for geospatial queries and performance
-  - Full-text search indexes for address and city fields
-  - Audit logging table for property status changes
+  - Properties table with PostGIS geometry and compliance scoring columns
+  - Indexes for compliance queries (sprinklers, zoning, occupancy type)
+  - Full-text search indexes for address and educational classification
+  - Audit logging for compliance status changes and tier updates
 - [ ] Set up database connection management
-  - Connection pooling with pgbouncer
-  - Read/write splitting for performance
-  - Connection health monitoring
-  - Automatic failover configuration
+  - Connection pooling optimized for large Regrid dataset queries
+  - Read/write splitting for FOIA data ingestion performance
+  - Connection health monitoring for compliance-critical operations
+  - Automatic failover configuration for zero-tolerance availability
 
 ### Authentication and Authorization System
 - [ ] Implement Supabase Auth integration
@@ -108,20 +109,21 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 
 ### Core Services and Utilities
 - [ ] Implement logging and monitoring infrastructure
-  - Structured logging with correlation IDs
-  - Performance monitoring and metrics collection
-  - Error tracking and alerting system
-  - Health check endpoints for all services
-- [ ] Create data validation and normalization utilities
-  - Address parsing and standardization
-  - City name normalization (Title Case)
-  - Coordinate validation and geocoding
-  - Data quality scoring algorithms
+  - Structured logging with compliance decision correlation IDs
+  - Performance monitoring for FOIA data processing
+  - Error tracking and alerting for compliance accuracy failures
+  - Health check endpoints with compliance data freshness validation
+- [ ] Create microschool-specific data validation and normalization utilities
+  - Address parsing and standardization for government data matching
+  - Occupancy type normalization (A, B, E, F, M classifications)
+  - Fire sprinkler requirement determination algorithms
+  - Zoning by-right educational use validation logic
+  - Multi-source compliance confidence scoring
 - [ ] Set up caching layer with Redis
-  - Query result caching with TTL
-  - Session data caching
-  - Geographic data caching for map tiles
-  - Cache invalidation strategies
+  - Compliance query result caching with TTL based on data freshness
+  - FOIA data processing caches for column mapping templates
+  - Address-based property lookup caching for instant responses
+  - Tier classification cache invalidation on compliance data updates
 
 ### Base API Structure
 - [ ] Create FastAPI application structure
@@ -142,73 +144,112 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 
 ## 3. Feature-specific Backend
 
-### High-Performance Data Import Engine
-- [ ] Implement DuckDB integration for CSV processing
-  - DuckDB connection management and optimization
-  - Batch processing in 1,000-row chunks
-  - Memory management for large datasets
-  - Performance monitoring and optimization
-- [ ] Create CSV import pipeline
-  - File validation and format checking
-  - Data type inference and validation
-  - Error handling with retry logic (3 attempts, 5s delay)
-  - Progress tracking and status reporting
-- [ ] Implement data normalization processes
-  - City name standardization to Title Case
-  - Address parsing and geocoding
-  - Duplicate detection and deduplication
-  - Data quality scoring and validation
-- [ ] Create import management API endpoints
-  - POST /api/v1/imports - Start new import job
-  - GET /api/v1/imports/{id} - Check import status
-  - GET /api/v1/imports/{id}/logs - Get import logs
-  - DELETE /api/v1/imports/{id} - Cancel import job
+### Regrid Base Layer Data Ingestion Engine
+- [ ] Implement DuckDB integration for massive CSV processing
+  - DuckDB connection management optimized for 15M+ record processing
+  - Batch processing in 1,000-row chunks for memory efficiency
+  - RegridSchema.xlsx-based column mapping system
+  - Performance monitoring targeting <30 minute total import time
+- [ ] Create Regrid CSV import pipeline
+  - File validation for county-specific CSV formats
+  - Schema detection and RegridSchema.xlsx mapping application
+  - Selective column import to optimize storage (only required fields)
+  - Progress tracking across 254+ Texas county files
+- [ ] Implement Regrid data normalization processes
+  - Address standardization for government data matching
+  - Coordinate validation and PostGIS geometry creation
+  - County-specific format reconciliation
+  - Quality scoring based on data completeness
+- [ ] Create Regrid import management API endpoints
+  - POST /api/v1/regrid/imports - Start county batch import job
+  - GET /api/v1/regrid/imports/{id} - Check import status and progress
+  - GET /api/v1/regrid/imports/{id}/logs - Get detailed import logs
+  - DELETE /api/v1/regrid/imports/{id} - Cancel running import job
 
-### Property Management API
-- [ ] Implement property CRUD operations
-  - GET /api/v1/properties - List properties with filtering
-  - GET /api/v1/properties/{id} - Get property details
-  - PATCH /api/v1/properties/{id} - Update property status
-  - GET /api/v1/properties/search - Full-text search endpoint
-- [ ] Create geospatial query endpoints
-  - GET /api/v1/properties/within-bounds - Properties in map viewport
-  - GET /api/v1/properties/near-point - Properties within radius
-  - GET /api/v1/properties/cluster - Cluster properties by zoom level
-  - GET /api/v1/properties/density - Property density analysis
-- [ ] Implement property status management
-  - Status transition validation (unreviewed → reviewed → synced)
-  - Bulk status update operations
-  - Audit trail for status changes
-  - Status-based filtering and reporting
-- [ ] Create property export functionality
-  - CSV export with custom field selection
-  - Filtered data exports based on search criteria
-  - Large dataset streaming export
-  - Export job management and download links
+### FOIA Data Integration Engine
+- [ ] Implement intelligent FOIA data processing system
+  - Template-based column mapping for recurring sources (Dallas Fire, Austin Building)
+  - Semantic recognition for non-standard government column names
+  - Multi-source data reconciliation and conflict resolution
+  - Data freshness tracking with expiration warnings
+- [ ] Create FOIA data ingestion pipeline
+  - CSV format validation for government department exports
+  - Fuzzy address matching for property association
+  - Coordinate-based verification for location matching
+  - Quality confidence scoring for compliance determinations
+- [ ] Build government data source management
+  - Fire Department FOIA processing (sprinkler systems, occupancy classifications)
+  - Building Department FOIA processing (square footage, ADA compliance)
+  - Planning Department FOIA processing (zoning verification, conditional use permits)
+  - Data source attribution and audit trail maintenance
+- [ ] Create FOIA management API endpoints
+  - POST /api/v1/foia/imports - Start new FOIA data import
+  - GET /api/v1/foia/templates - Get saved column mapping templates
+  - POST /api/v1/foia/templates - Save new column mapping configuration
+  - GET /api/v1/foia/sources - List data sources with freshness status
 
-### City and Geographic Data API
-- [ ] Implement city search and autocomplete
-  - GET /api/v1/cities/search - Autocomplete with property counts
-  - GET /api/v1/cities/{id}/properties - Properties for specific city
-  - GET /api/v1/cities/stats - City-level statistics
-  - Full-text search with fuzzy matching
-- [ ] Create geographic boundary management
-  - City boundary data storage and retrieval
-  - County boundary data for regional analysis
-  - State-level aggregation endpoints
-  - Boundary intersection queries for properties
+### Microschool Compliance Engine
+- [ ] Implement tier-based property classification system
+  - Tier 1: Existing Educational Occupancy, Zoned by Right, 6,000+ sq ft
+  - Tier 2: Zoned by Right, Non-Educational Occupancy, Has Fire Sprinkler
+  - Tier 3: Zoned by Right, Non-Educational Occupancy, Unknown Fire Sprinklers
+  - Disqualified: Not zoned by right or other disqualifying factors
+- [ ] Create compliance scoring and validation engine
+  - Fire sprinkler requirement determination for E-occupancy conversion
+  - Zoning by-right educational use verification
+  - Building code compliance assessment (ADA, egress, square footage)
+  - Multi-source confidence scoring (0-100 based on data completeness)
+- [ ] Build regulatory risk assessment system
+  - Compliance confidence scoring based on data age and source quality
+  - Regulatory change impact analysis for properties in pipeline
+  - Data freshness monitoring with refresh recommendations
+  - Manual review trigger system for uncertain compliance determinations
+- [ ] Create compliance API endpoints
+  - GET /api/v1/compliance/property/{id} - Get comprehensive compliance analysis
+  - POST /api/v1/compliance/bulk-classify - Bulk tier classification update
+  - GET /api/v1/compliance/confidence/{id} - Get compliance confidence scoring
+  - PUT /api/v1/compliance/manual-review/{id} - Submit manual compliance review
 
-### Analytics and Reporting API
-- [ ] Implement market intelligence endpoints
-  - GET /api/v1/analytics/density - Property density by region
-  - GET /api/v1/analytics/trends - Geographic trend analysis
-  - GET /api/v1/analytics/pipeline - Status distribution reporting
-  - GET /api/v1/analytics/performance - System performance metrics
-- [ ] Create export and integration endpoints
-  - POST /api/v1/exports/csv - Generate CSV exports
-  - POST /api/v1/integrations/salesforce - Push to Salesforce CRM
-  - GET /api/v1/reports/market - Generate market analysis reports
-  - Webhook endpoints for real-time integrations
+### Address-Based Property Intelligence API
+- [ ] Implement instant property lookup system
+  - Address-based property search with fuzzy matching
+  - Immediate zoning classification and educational use status display
+  - Fire sprinkler requirement determination for address lookup
+  - Property owner intelligence integration for off-market sourcing
+- [ ] Create quick intelligence endpoints
+  - GET /api/v1/intelligence/address/{address} - Instant property intelligence lookup
+  - GET /api/v1/intelligence/property/{id}/owner - Property owner contact information
+  - GET /api/v1/intelligence/zoning/{address} - Zoning and educational use permissions
+  - GET /api/v1/intelligence/compliance/{address} - Compliance summary with data sources
+
+### Property Pipeline and Workflow Management API
+- [ ] Implement tier-based property management
+  - Tier classification with automatic updates based on new compliance data
+  - Status workflow management with team assignment capabilities
+  - Bulk operations for efficient pipeline management
+  - Property comparison tools for side-by-side analysis
+- [ ] Create workflow and pipeline endpoints
+  - GET /api/v1/pipeline/tiers - Get properties organized by tier classification
+  - PUT /api/v1/pipeline/status/{id} - Update property investigation status
+  - POST /api/v1/pipeline/bulk-update - Bulk status updates for multiple properties
+  - GET /api/v1/pipeline/analytics - Pipeline performance and conversion metrics
+- [ ] Build export and CRM integration system
+  - Filtered CSV exports based on tier classification and custom criteria
+  - CRM integration for pushing qualified properties to external systems
+  - Market analysis report generation with compliance insights
+  - Automated pipeline performance reporting
+
+### Market Intelligence and Analytics API
+- [ ] Implement microschool market analysis endpoints
+  - GET /api/v1/analytics/market-opportunity - Qualified property density by region
+  - GET /api/v1/analytics/compliance-trends - Regulatory trend analysis
+  - GET /api/v1/analytics/tier-distribution - Tier classification distribution reporting
+  - GET /api/v1/analytics/sourcing-pipeline - Off-market sourcing performance metrics
+- [ ] Create competitive intelligence features
+  - Qualified property discovery rate tracking
+  - Market coverage analysis across target cities
+  - Regulatory change impact assessments
+  - Property owner relationship intelligence analytics
 
 ## 4. Frontend Foundation
 
@@ -260,20 +301,20 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 
 ### Component Library and Design System
 - [ ] Create base UI component library
-  - Button components with variants
-  - Input components with validation
-  - Modal and dialog components
-  - Loading and error state components
-- [ ] Implement form handling components
-  - Form validation with proper error states
-  - Search input with autocomplete
-  - Filter controls for property data
-  - Status update components
-- [ ] Create layout and container components
-  - Responsive grid layouts
-  - Card components for property display
-  - List and table components
-  - Sidebar and panel layouts
+  - Button components with compliance action variants
+  - Input components with FOIA data validation
+  - Modal and dialog components for compliance decisions
+  - Loading and error state components with data freshness indicators
+- [ ] Implement microschool-specific form handling components
+  - Address lookup with instant compliance preview
+  - Tier classification filters (Tier 1/2/3, Disqualified)
+  - Compliance confidence scoring displays
+  - Status update components with audit trail
+- [ ] Create compliance-focused layout and container components
+  - Responsive grid layouts optimized for property compliance data
+  - Property card components with tier-based color coding
+  - Compliance dashboard panels with confidence indicators
+  - Sidebar layouts for FOIA data source management
 
 ### Error Handling and User Experience
 - [ ] Implement comprehensive error boundaries
@@ -289,244 +330,266 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 
 ## 5. Feature-specific Frontend
 
-### Interactive Mapping Platform
-- [ ] Implement Mapbox GL JS integration
-  - Map initialization and configuration
-  - Custom map styles and themes
-  - Responsive map container
-  - Map control integration (zoom, navigation)
-- [ ] Create progressive map visualization system
-  - Zoom-level based rendering logic
-  - Cluster visualization for density (zoom 1-7)
-  - Grid-based clustering (zoom 8-11)
-  - Individual property markers (zoom 14+)
-- [ ] Implement property marker system
-  - Color-coded status indicators (blue, orange, green, red)
-  - Interactive marker clustering
-  - Custom marker icons and styling
-  - Marker click handling and popups
-- [ ] Create map interaction controls
-  - Property filtering controls overlay
-  - Map legend and status indicators
-  - Zoom-based data loading
-  - Viewport change handling for data fetching
+### Microschool Compliance-Focused Mapping Platform
+- [ ] Implement compliance-driven Mapbox GL JS integration
+  - Map initialization with microschool zoning overlay capabilities
+  - Custom map styles emphasizing educational zoning districts
+  - Responsive map container with compliance data panel integration
+  - Map controls optimized for compliance filtering and analysis
+- [ ] Create tier-based progressive map visualization system
+  - Zoom-level based rendering optimized for compliance analysis
+  - Regional compliance opportunity visualization (zoom 1-7)
+  - District-level tier clustering with demographic overlays (zoom 8-11)
+  - Individual property tier classification markers (zoom 12+)
+- [ ] Implement tier-based property marker system
+  - Color-coded tier indicators (Green: Tier 1, Yellow: Tier 2, Blue: Tier 3, Red: Disqualified, Gray: Insufficient Data)
+  - Interactive marker clustering with tier composition preview
+  - Custom compliance-focused marker icons and styling
+  - Marker click handling with instant compliance summary popups
+- [ ] Create compliance-focused map interaction controls
+  - Tier classification filtering controls overlay
+  - Compliance confidence map legend with data freshness indicators
+  - Regulatory change alert overlay system
+  - Viewport-based compliance data loading with performance optimization
 
-### Property Search and Discovery Interface
-- [ ] Implement city search with autocomplete
-  - Real-time search with debouncing
-  - Property count previews in results
-  - Fuzzy matching for city names
-  - Recent searches and favorites
-- [ ] Create advanced property filtering
-  - Status-based filtering (unreviewed, reviewed, synced, unqualified)
-  - Geographic filters (county, city, region)
-  - Property attribute filters (zoning, occupancy, sprinklers)
-  - Custom filter combinations
-- [ ] Implement property list views
-  - Virtualized scrolling for performance
-  - Sortable columns for property data
-  - Bulk selection and operations
-  - Export functionality from filtered results
+### Address-Based Property Intelligence Interface
+- [ ] Implement instant address lookup system
+  - Real-time address search with compliance preview
+  - Zoning and educational use status immediate display
+  - Fire sprinkler requirement determination in search results
+  - Property owner intelligence preview for off-market potential
+- [ ] Create microschool-specific property filtering
+  - Tier-based filtering (Tier 1, Tier 2, Tier 3, Disqualified, Insufficient Data)
+  - Compliance criteria filters (sprinklers, zoning, occupancy, square footage)
+  - Data freshness filters for compliance confidence management
+  - FOIA data source filters for verification requirements
+- [ ] Implement compliance-focused property list views
+  - Virtualized scrolling optimized for compliance data display
+  - Sortable columns prioritizing tier classification and confidence scores
+  - Bulk tier classification operations for pipeline management
+  - Export functionality filtered by compliance criteria and confidence levels
 
-### Property Management Interface
-- [ ] Create property detail views
-  - Comprehensive property information display
-  - Status update controls with validation
-  - Property history and audit trail
-  - Notes and annotation system
-- [ ] Implement property status management
-  - Status change workflows with confirmation
-  - Bulk status update operations
-  - Status change history and rollback
-  - Visual status indicators throughout UI
-- [ ] Create property workflow tools
-  - Pipeline management dashboard
-  - Property comparison tools
-  - Bookmark and favorites system
-  - Team collaboration features
+### Compliance Dashboard and Property Intelligence Interface
+- [ ] Create comprehensive compliance property detail views
+  - Multi-source compliance data display with source attribution
+  - Tier classification with automatic update indicators
+  - Fire sprinkler, zoning, and occupancy compliance breakdown
+  - Data freshness indicators with refresh recommendations
+  - Property owner intelligence for off-market sourcing strategy
+- [ ] Implement tier-based property pipeline management
+  - Tier classification workflows with confidence-based validation
+  - Bulk tier update operations with audit trail
+  - Compliance decision history and rollback capabilities
+  - Visual tier progression indicators throughout UI
+- [ ] Create microschool workflow tools
+  - Compliance-focused pipeline management dashboard
+  - Side-by-side property compliance comparison tools
+  - Qualified property bookmark system with tier organization
+  - Team collaboration features for compliance decisions
 
-### Analytics and Reporting Dashboard
-- [ ] Implement market intelligence visualizations
-  - Property density heat maps
-  - Geographic trend analysis charts
-  - Status distribution pie charts
-  - Time-series analysis graphs
-- [ ] Create export and reporting interfaces
-  - Custom CSV export configuration
-  - Report generation with templates
-  - Scheduled report delivery
-  - Data visualization for insights
+### FOIA Data Integration and Management Interface
+- [ ] Implement FOIA data source management interface
+  - Government data source tracking with freshness indicators
+  - Column mapping template management for recurring FOIA sources
+  - Data import progress tracking with error resolution tools
+  - Multi-source data reconciliation interface for conflicting information
+- [ ] Create intelligent data mapping interfaces
+  - Interactive column mapping with semantic recognition suggestions
+  - Template-based mapping for saved FOIA source configurations
+  - Conflict resolution interface for contradictory government data
+  - Data quality confidence scoring display and management
+- [ ] Build FOIA data validation and verification tools
+  - Address matching confidence indicators and manual override tools
+  - Cross-source verification displays for compliance determinations
+  - Data freshness monitoring with automated refresh scheduling
+  - Manual review queue for uncertain compliance determinations
+
+### Market Intelligence and Analytics Dashboard
+- [ ] Implement microschool market opportunity visualizations
+  - Qualified property density heat maps by tier classification
+  - Market opportunity analysis charts across target cities
+  - Tier distribution analytics with conversion funnel analysis
+  - Off-market sourcing pipeline performance metrics
+- [ ] Create compliance intelligence reporting interfaces
+  - Custom export configuration for tier-based property lists
+  - Market analysis report generation with compliance insights
+  - Regulatory change impact assessment reports
+  - Property owner relationship intelligence analytics
 - [ ] Build performance monitoring dashboard
-  - Real-time system performance metrics
-  - Data import progress tracking
-  - User activity analytics
-  - System health indicators
+  - Real-time compliance data processing performance metrics
+  - FOIA data import and processing progress tracking
+  - User activity analytics focused on compliance decision workflows
+  - System health indicators emphasizing data freshness and accuracy
 
 ## 6. Integration
 
 ### API Integration and Data Flow
-- [ ] Connect frontend to backend APIs
-  - Configure API client with proper error handling
-  - Implement request/response interceptors
-  - Set up authentication token management
-  - Configure retry logic for failed requests
-- [ ] Implement real-time data synchronization
-  - WebSocket connections for live updates
-  - Optimistic UI updates with conflict resolution
-  - Background data synchronization
-  - Offline support with sync on reconnect
-- [ ] Create end-to-end feature workflows
-  - Complete property discovery workflow
-  - Property status management pipeline
-  - Data import to visualization pipeline
-  - Export and external integration workflows
+- [ ] Connect frontend to microschool-focused backend APIs
+  - Configure API client with compliance data error handling
+  - Implement request/response interceptors with data freshness validation
+  - Set up authentication token management for sensitive compliance data
+  - Configure retry logic for failed FOIA data processing requests
+- [ ] Implement real-time compliance data synchronization
+  - WebSocket connections for live tier classification updates
+  - Optimistic UI updates for compliance decisions with conflict resolution
+  - Background synchronization for FOIA data freshness monitoring
+  - Offline support with compliance decision sync on reconnect
+- [ ] Create end-to-end microschool intelligence workflows
+  - Complete property discovery to tier classification workflow
+  - Compliance data import to property intelligence pipeline
+  - FOIA data integration to compliance scoring workflow
+  - Tier-based export and CRM integration workflows
 
 ### External Service Integration
-- [ ] Integrate Mapbox services
-  - Vector tile loading and rendering
-  - Geocoding API for address validation
-  - Custom map style configuration
-  - Usage monitoring and optimization
-- [ ] Implement Supabase service integration
-  - Real-time database subscriptions
-  - Edge function deployment and management
-  - Authentication service integration
-  - File storage for CSV imports
-- [ ] Set up third-party integrations
-  - Salesforce CRM integration (future)
-  - County data source APIs (future)
-  - Analytics and monitoring services
-  - Error reporting and logging services
+- [ ] Integrate Mapbox services for compliance visualization
+  - Vector tile loading with educational zoning overlay rendering
+  - Geocoding API for FOIA data address validation and matching
+  - Custom map styles emphasizing compliance zones and tier classifications
+  - Usage monitoring optimized for compliance analysis workflows
+- [ ] Implement Supabase service integration for compliance data
+  - Real-time database subscriptions for tier classification updates
+  - Edge function deployment for compliance scoring algorithms
+  - Authentication service integration with role-based compliance data access
+  - File storage for Regrid CSV imports and FOIA data processing
+- [ ] Set up microschool-specific third-party integrations
+  - CRM integration for qualified property pipeline management
+  - Government data source APIs for automated FOIA data updates
+  - Compliance monitoring services for regulatory change detection
+  - Error reporting focused on compliance accuracy and data quality issues
 
 ### Performance Optimization Integration
-- [ ] Implement caching strategies
-  - API response caching with Redis
-  - Browser caching for static assets
-  - Map tile caching for performance
-  - Query result memoization
-- [ ] Create performance monitoring integration
-  - Frontend performance tracking
-  - Backend API performance monitoring
-  - Database query performance analysis
-  - User experience metrics collection
+- [ ] Implement compliance-focused caching strategies
+  - Compliance scoring result caching with TTL based on data freshness
+  - FOIA data processing result caching for repeated column mapping operations
+  - Tier classification caching with intelligent invalidation on compliance data updates
+  - Address-based property lookup caching for instant response times
+- [ ] Create microschool-specific performance monitoring integration
+  - Frontend performance tracking focused on compliance decision workflows
+  - Backend API performance monitoring for FOIA data processing and Regrid imports
+  - Database query performance analysis for compliance scoring and tier classification
+  - User experience metrics collection emphasizing compliance workflow efficiency
 
 ## 7. Testing
 
 ### Unit Testing
-- [ ] Set up backend unit testing infrastructure
-  - pytest configuration and test structure
-  - Mock external dependencies (database, APIs)
-  - Test fixtures for property data
-  - Coverage reporting and thresholds (>80%)
-- [ ] Create comprehensive backend unit tests
-  - Data import and normalization logic tests
-  - API endpoint unit tests
-  - Database query and operation tests
-  - Authentication and authorization tests
-- [ ] Set up frontend unit testing infrastructure
-  - Jest and React Testing Library configuration
-  - Component testing utilities and mocks
-  - State management testing utilities
-  - Coverage reporting and thresholds (>80%)
-- [ ] Create comprehensive frontend unit tests
-  - Component rendering and interaction tests
-  - State management logic tests
-  - Utility function tests
-  - Hook and custom logic tests
+- [ ] Set up backend unit testing infrastructure for compliance accuracy
+  - pytest configuration with compliance-specific test structure
+  - Mock external dependencies (Regrid data, FOIA sources, government APIs)
+  - Test fixtures for property compliance data and tier classifications
+  - Coverage reporting and thresholds (>90% for compliance-critical code)
+- [ ] Create comprehensive backend unit tests for microschool intelligence
+  - Regrid data import and normalization logic tests
+  - FOIA data processing and column mapping tests
+  - Compliance scoring algorithm accuracy tests
+  - Tier classification logic validation tests
+  - Address-based property lookup tests
+- [ ] Set up frontend unit testing infrastructure for compliance workflows
+  - Jest and React Testing Library configuration with compliance scenario testing
+  - Component testing utilities for tier-based property displays
+  - State management testing for compliance decision workflows
+  - Coverage reporting targeting >85% for compliance UI components
+- [ ] Create comprehensive frontend unit tests for microschool features
+  - Compliance dashboard component rendering and interaction tests
+  - Tier classification filter and display logic tests
+  - Address lookup and instant compliance preview tests
+  - FOIA data management interface tests
 
 ### Integration Testing
-- [ ] Implement API integration tests
-  - End-to-end API workflow testing
-  - Database integration testing
-  - Authentication flow testing
-  - External service integration testing
-- [ ] Create frontend integration tests
-  - Component integration testing
-  - User workflow testing
-  - State management integration tests
-  - API integration testing
-- [ ] Set up database integration testing
-  - Test database setup and teardown
-  - Migration testing automation
-  - Data integrity and constraint testing
-  - Performance benchmark testing
+- [ ] Implement compliance-focused API integration tests
+  - End-to-end compliance workflow testing (Regrid import → FOIA integration → tier classification)
+  - Database integration testing for compliance data integrity
+  - Authentication flow testing with role-based compliance data access
+  - External service integration testing (FOIA sources, government APIs)
+- [ ] Create microschool-focused frontend integration tests
+  - Compliance dashboard component integration testing
+  - User workflow testing for property qualification pipelines
+  - State management integration tests for tier classification updates
+  - API integration testing for address-based property intelligence
+- [ ] Set up compliance data integrity testing
+  - Test database setup with compliance schema validation
+  - Migration testing automation for compliance data model changes
+  - Data integrity constraints testing for tier classification consistency
+  - Performance benchmark testing for large Regrid dataset operations
 
 ### End-to-End Testing
-- [ ] Set up E2E testing infrastructure
-  - Playwright or Cypress configuration
-  - Test environment setup and management
-  - Test data seeding and cleanup
-  - Cross-browser testing setup
-- [ ] Create critical user journey tests
-  - Property search and discovery workflows
-  - Property status management workflows
-  - Data import and processing workflows
-  - Map interaction and visualization tests
-- [ ] Implement performance and load testing
-  - Database query performance tests
-  - API endpoint load testing
-  - Frontend rendering performance tests
-  - Map rendering performance benchmarks
+- [ ] Set up E2E testing infrastructure for microschool workflows
+  - Playwright configuration optimized for compliance decision workflows
+  - Test environment with seeded compliance test data
+  - Test data cleanup for tier classification and FOIA data scenarios
+  - Cross-browser testing focused on map-based compliance analysis
+- [ ] Create critical microschool user journey tests
+  - Property discovery to tier classification workflows
+  - Address-based property lookup and instant compliance analysis
+  - FOIA data import and column mapping workflows
+  - Compliance pipeline management and bulk operations
+- [ ] Implement performance and load testing for compliance operations
+  - Database query performance tests for compliance scoring at scale
+  - API endpoint load testing for concurrent tier classification operations
+  - Frontend rendering performance tests for large compliance datasets
+  - Map rendering performance benchmarks with tier-based marker clustering
 
 ### Security Testing
-- [ ] Implement security testing protocols
-  - Authentication and authorization testing
-  - Input validation and sanitization tests
-  - SQL injection and XSS vulnerability tests
-  - API security and rate limiting tests
-- [ ] Create data privacy and compliance tests
-  - Data access control testing
-  - Audit logging verification
-  - Data retention policy testing
-  - GDPR compliance verification (future)
+- [ ] Implement security testing protocols for compliance data
+  - Authentication and authorization testing for sensitive compliance information
+  - Input validation tests for FOIA data imports and address lookups
+  - SQL injection and XSS vulnerability tests for compliance data queries
+  - API security and rate limiting tests for compliance intelligence endpoints
+- [ ] Create data privacy and compliance tests for microschool intelligence
+  - Data access control testing for property owner intelligence and compliance data
+  - Audit logging verification for compliance decisions and tier classifications
+  - Data retention policy testing for FOIA data and compliance determinations
+  - Property owner privacy protection verification for off-market sourcing data
 
 ## 8. Documentation
 
 ### API Documentation
-- [ ] Create comprehensive API documentation
-  - OpenAPI/Swagger documentation with examples
-  - Authentication and authorization guide
-  - Rate limiting and usage guidelines
-  - Error codes and troubleshooting guide
-- [ ] Document data models and schemas
-  - Database schema documentation
-  - API request/response schemas
-  - Data validation rules and constraints
-  - Data import formats and specifications
-- [ ] Create integration guides
-  - Third-party service integration guides
-  - Webhook and real-time integration docs
-  - SDK and client library documentation
-  - Example code and tutorials
+- [ ] Create comprehensive microschool intelligence API documentation
+  - OpenAPI/Swagger documentation with compliance workflow examples
+  - Authentication and authorization guide for sensitive compliance data access
+  - Rate limiting and usage guidelines for FOIA data processing operations
+  - Error codes and troubleshooting guide for compliance accuracy issues
+- [ ] Document compliance data models and schemas
+  - Database schema documentation for tier classification and compliance data
+  - API request/response schemas for property intelligence and FOIA integration
+  - Compliance scoring algorithm documentation and validation rules
+  - Regrid and FOIA data import format specifications and column mapping guides
+- [ ] Create microschool-specific integration guides
+  - FOIA data source integration guides for government departments
+  - CRM integration documentation for qualified property pipeline management
+  - Compliance monitoring webhook documentation for regulatory change alerts
+  - SDK documentation and examples for address-based property intelligence
 
 ### User Documentation
-- [ ] Create user guide and tutorials
-  - Getting started guide for new users
-  - Feature-specific usage tutorials
-  - Best practices and workflow guides
-  - Troubleshooting and FAQ section
-- [ ] Document administrative procedures
-  - Data import and management procedures
-  - User management and access control
-  - System monitoring and maintenance
-  - Backup and recovery procedures
+- [ ] Create microschool property intelligence user guide and tutorials
+  - Getting started guide for Primer Real Estate team members
+  - Compliance workflow tutorials (property discovery, tier classification, pipeline management)
+  - Address-based property lookup and instant intelligence usage guides
+  - FOIA data integration and column mapping tutorials
+  - Best practices for compliance decision-making and confidence assessment
+  - Troubleshooting guide for compliance data accuracy and regulatory change alerts
+- [ ] Document microschool-specific administrative procedures
+  - Regrid data import and batch processing procedures
+  - FOIA data source management and template configuration
+  - User management with role-based compliance data access control
+  - Compliance data quality monitoring and system maintenance
+  - Backup and recovery procedures for compliance-critical datasets
 
 ### Developer Documentation
-- [ ] Create comprehensive developer documentation
-  - Setup and installation guide
-  - Development workflow and contribution guide
-  - Code style and convention documentation
-  - Testing strategy and guidelines
-- [ ] Document system architecture
-  - High-level architecture diagrams
-  - Database design and relationships
-  - API architecture and data flow
-  - Security architecture and protocols
-- [ ] Create deployment and operations documentation
-  - Deployment procedures and automation
-  - Environment configuration guide
-  - Monitoring and alerting setup
-  - Performance tuning guidelines
+- [ ] Create comprehensive microschool intelligence developer documentation
+  - Setup and installation guide for compliance-focused development environment
+  - Development workflow and contribution guide emphasizing compliance accuracy
+  - Code style and convention documentation for compliance-critical components
+  - Testing strategy with emphasis on compliance algorithm validation
+- [ ] Document microschool intelligence system architecture
+  - High-level architecture diagrams showing Regrid + FOIA data flow
+  - Database design for compliance data relationships and tier classification
+  - API architecture for compliance scoring and property intelligence workflows
+  - Security architecture for protecting sensitive compliance and property owner data
+- [ ] Create deployment and operations documentation for compliance platform
+  - Deployment procedures with zero-tolerance compliance data accuracy requirements
+  - Environment configuration guide for FOIA data source management
+  - Monitoring and alerting setup focused on compliance data freshness and accuracy
+  - Performance tuning guidelines for large-scale Regrid processing and real-time compliance scoring
 
 ## 9. Deployment
 
@@ -655,20 +718,25 @@ The Primer Seek Property sourcing system is a comprehensive platform designed to
 
 ## Success Metrics and Validation
 
-### Performance Benchmarks
-- Data Import: Complete county import in < 30 minutes
-- Search Performance: City search results in < 10 seconds
-- Map Rendering: Full city view loads in < 2 seconds
-- System Uptime: 99.5% availability during business hours
+### Microschool Intelligence Performance Benchmarks
+- Regrid Data Import: Complete Texas 15M+ records in < 30 minutes
+- FOIA Data Processing: 300K+ records processed in < 5 minutes
+- Address-Based Intelligence: Property lookup response in < 500ms
+- Compliance Scoring: Individual property analysis in < 100ms
+- Map Rendering: City view with tier classifications in < 2 seconds
+- System Uptime: 99.5% availability with zero tolerance for compliance accuracy failures
 
-### Data Quality Standards
-- Accuracy Rate: 95%+ validated property information
-- Completeness: < 5% missing essential fields
-- Normalization: 100% city names in Title Case format
-- Duplicate Rate: < 1% duplicate properties in database
+### Compliance Data Quality Standards
+- Compliance Accuracy: 95%+ validated fire sprinkler, zoning, and occupancy determinations
+- Tier Classification Accuracy: 99%+ correct tier assignments with confidence scoring
+- Data Freshness: 90%+ of compliance data < 90 days old with automated refresh alerts
+- Property Matching: 99%+ accuracy in FOIA data to property association
+- False Positive Rate: < 1% incorrect compliance qualifications (zero tolerance goal)
 
-### User Experience Goals
-- Learning Curve: New users productive within 15 minutes
-- Task Completion: 90%+ success rate for core user tasks
-- Error Rate: < 5% user errors during typical workflows
-- Feature Adoption: 95% search usage, 80% map interaction, 60% status updates
+### Microschool Intelligence User Experience Goals
+- Learning Curve: Primer Real Estate team productive within 30 minutes
+- Compliance Decision Confidence: 95%+ confidence in platform-provided compliance analysis
+- Task Completion: 95%+ success rate for property qualification workflows
+- Pipeline Efficiency: Measurable reduction in property research time (target: 80% time savings)
+- Feature Adoption: 95% tier classification usage, 90% address lookup, 85% compliance dashboard
+- Business Impact: Enable 20 signed leases by December 2025 through platform intelligence

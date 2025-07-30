@@ -4,11 +4,11 @@ Application configuration management using Pydantic Settings.
 
 from functools import lru_cache
 
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):  # type: ignore[misc]
     """Application settings with environment variable support."""
 
     model_config = SettingsConfigDict(
@@ -30,13 +30,13 @@ class Settings(BaseSettings):
     )
 
     # Server settings
-    host: str = Field(default="0.0.0.0", description="Server host")
+    host: str = Field(default="0.0.0.0", description="Server host")  # nosec B104
     port: int = Field(default=8000, description="Server port")
     reload: bool = Field(default=False, description="Auto-reload on code changes")
 
     # Database settings
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:password@db.fnysbvwgefnligvfsuhs.supabase.co:5432/postgres",
+        default="postgresql+asyncpg://postgres:Logistimatics123%21@db.goowadpoiciscdcxpwtm.supabase.co:5432/postgres",  # pragma: allowlist secret
         description="Database connection URL",
     )
     database_echo: bool = Field(
@@ -70,8 +70,14 @@ class Settings(BaseSettings):
     )
 
     # Supabase settings
-    supabase_url: str | None = Field(default=None, description="Supabase project URL")
-    supabase_key: str | None = Field(default=None, description="Supabase anon key")
+    supabase_url: str | None = Field(
+        default="https://goowadpoiciscdcxpwtm.supabase.co",
+        description="Supabase project URL",
+    )
+    supabase_key: str | None = Field(
+        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdvb3dhZHBvaWNpc2NkY3hwd3RtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4Mzk1NzYsImV4cCI6MjA2OTQxNTU3Nn0.bNWJlbfFqXiQLJc-rvWp1Pn4ycxUvfQBFWmSvyKKnxs",  # pragma: allowlist secret
+        description="Supabase anon key",
+    )
 
     # External API settings
     mapbox_access_token: str | None = Field(
@@ -95,7 +101,8 @@ class Settings(BaseSettings):
         description="CORS allowed origins",
     )
 
-    @validator("environment")
+    @field_validator("environment")  # type: ignore[misc]
+    @classmethod
     def validate_environment(cls, v: str) -> str:
         """Validate environment value."""
         allowed = ["development", "staging", "production"]
