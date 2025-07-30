@@ -39,7 +39,8 @@ switch_to_main() {
 # Main Branch Environment - Production Database
 ENVIRONMENT=production
 SUPABASE_URL=https://fnysbvwgefnligvfsuhs.supabase.co
-export DATABASE_URL=postgresql://postgres:Logistimatics123%21@db.fnysbvwgefnligvfsuhs.supabase.co:5432/postgres
+# Database password should be set via environment variable DB_PASSWORD
+export DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-your-password-here}@db.fnysbvwgefnligvfsuhs.supabase.co:5432/postgres
 EOF
     fi
 
