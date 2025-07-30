@@ -10,10 +10,18 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from ..core.config import get_settings
+from ..core.security import (
+    TokenData,
+    get_current_user,
+    require_monitoring,
+    require_monitoring_admin,
+    require_database_admin,
+    rate_limit_dependency,
+)
 from ..services.database_connection_manager import (
     ConnectionType,
     PerformanceMetrics,
@@ -78,20 +86,12 @@ class ResilienceStatsResponse(BaseModel):
     summary: Dict[str, Any]
 
 
-# Dependency functions
-async def get_connection_manager() -> Any:
-    """Dependency to get connection manager instance."""
-    return connection_manager
-
-
-async def get_health_monitor() -> Any:
-    """Dependency to get health monitor instance."""
-    return health_monitor
-
-
-async def get_resilience_service() -> Any:
-    """Dependency to get resilience service instance."""
-    return resilience_service
+# Import dependency functions
+from ..core.dependencies import (
+    get_connection_manager_dependency,
+    get_database_monitor_dependency,
+    get_resilience_service_dependency,
+)
 
 
 # Health and status endpoints
@@ -101,7 +101,8 @@ async def get_database_health_status(
         False, description="Include detailed diagnostics"
     ),
     use_cache: bool = Query(True, description="Use cached health report if available"),
-    health_monitor_service: Any = Depends(get_health_monitor),
+    health_monitor_service: Any = Depends(get_database_monitor_dependency),
+    current_user: TokenData = Depends(require_monitoring),
 ) -> DatabaseHealthResponse:
     """
     Get comprehensive database health status.
@@ -177,8 +178,10 @@ async def get_database_health_status(
 async def get_performance_metrics(
     include_trends: bool = Query(False, description="Include performance trends"),
     pool_name: str | None = Query(None, description="Filter by specific pool"),
-    conn_manager: Any = Depends(get_connection_manager),
-    health_monitor_service: Any = Depends(get_health_monitor),
+    conn_manager: Any = Depends(get_connection_manager_dependency),
+    health_monitor_service: Any = Depends(get_database_monitor_dependency),
+    current_user: TokenData = Depends(require_monitoring),
+    _: None = Depends(rate_limit_dependency),
 ) -> PerformanceMetricsResponse:
     """
     Get detailed performance metrics for database connections.
@@ -308,7 +311,10 @@ async def get_resilience_statistics(resilience_svc: Any = Depends(get_resilience
 
 @router.post("/resilience/circuit-breaker/{operation_context}/reset")
 async def reset_circuit_breaker(
-    operation_context: str, resilience_svc: Any = Depends(get_resilience_service)
+    operation_context: str,
+    resilience_svc: Any = Depends(get_resilience_service_dependency),
+    current_user: TokenData = Depends(require_database_admin),
+    _: None = Depends(rate_limit_dependency),
 ) -> Dict[str, Any]:
     """
     Manually reset a circuit breaker for a specific operation context.
@@ -375,7 +381,9 @@ async def start_monitoring(
     interval_seconds: int = Query(
         60, ge=10, le=3600, description="Monitoring interval in seconds"
     ),
-    health_monitor_service: Any = Depends(get_health_monitor),
+    health_monitor_service: Any = Depends(get_database_monitor_dependency),
+    current_user: TokenData = Depends(require_monitoring_admin),
+    _: None = Depends(rate_limit_dependency),
 ) -> Dict[str, Any]:
     """
     Start background database monitoring.
@@ -401,7 +409,11 @@ async def start_monitoring(
 
 
 @router.post("/monitoring/stop")
-async def stop_monitoring(health_monitor_service: Any = Depends(get_health_monitor)) -> Dict[str, Any]:
+async def stop_monitoring(
+    health_monitor_service: Any = Depends(get_database_monitor_dependency),
+    current_user: TokenData = Depends(require_monitoring_admin),
+    _: None = Depends(rate_limit_dependency),
+) -> Dict[str, Any]:
     """
     Stop background database monitoring.
     """
@@ -425,7 +437,9 @@ async def stop_monitoring(health_monitor_service: Any = Depends(get_health_monit
 @router.post("/connections/close-all")
 async def close_all_connections(
     confirm: bool = Query(False, description="Confirm connection closure"),
-    conn_manager: Any = Depends(get_connection_manager),
+    conn_manager: Any = Depends(get_connection_manager_dependency),
+    current_user: TokenData = Depends(require_database_admin),
+    _: None = Depends(rate_limit_dependency),
 ) -> Dict[str, Any]:
     """
     Close all database connections (use with caution).

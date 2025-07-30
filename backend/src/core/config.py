@@ -36,7 +36,7 @@ class Settings(BaseSettings):  # type: ignore[misc]
 
     # Database settings - Primary (Write) Connection
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:Logistimatics123%21@db.goowadpoiciscdcxpwtm.supabase.co:5432/postgres",  # pragma: allowlist secret
+        ...,  # Required field - must be provided via environment variable
         description="Primary database connection URL (write operations)",
     )
     database_echo: bool = Field(
@@ -196,7 +196,8 @@ class Settings(BaseSettings):  # type: ignore[misc]
 
     # Authentication settings
     secret_key: str = Field(
-        default="your-secret-key-change-in-production", description="JWT secret key"
+        ...,  # Required field - must be provided via environment variable
+        description="JWT secret key",
     )
     algorithm: str = Field(default="HS256", description="JWT algorithm")
     access_token_expire_minutes: int = Field(
@@ -205,11 +206,11 @@ class Settings(BaseSettings):  # type: ignore[misc]
 
     # Supabase settings
     supabase_url: str | None = Field(
-        default="https://goowadpoiciscdcxpwtm.supabase.co",
+        default=None,
         description="Supabase project URL",
     )
     supabase_key: str | None = Field(
-        default="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdvb3dhZHBvaWNpc2NkY3hwd3RtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4Mzk1NzYsImV4cCI6MjA2OTQxNTU3Nn0.bNWJlbfFqXiQLJc-rvWp1Pn4ycxUvfQBFWmSvyKKnxs",  # pragma: allowlist secret
+        default=None,
         description="Supabase anon key",
     )
 
@@ -235,6 +236,25 @@ class Settings(BaseSettings):  # type: ignore[misc]
         description="CORS allowed origins",
     )
 
+    # Rate limiting settings
+    rate_limit_requests_per_minute: int = Field(
+        default=100, description="API rate limit requests per minute"
+    )
+    rate_limit_burst_size: int = Field(
+        default=20, description="Rate limit burst size"
+    )
+
+    # Security settings
+    enable_https_only: bool = Field(
+        default=True, description="Enforce HTTPS-only connections"
+    )
+    enable_security_headers: bool = Field(
+        default=True, description="Enable security headers"
+    )
+    session_timeout_minutes: int = Field(
+        default=60, description="Session timeout in minutes"
+    )
+
     @field_validator("environment")  # type: ignore[misc]
     @classmethod
     def validate_environment(cls, v: str) -> str:
@@ -242,6 +262,22 @@ class Settings(BaseSettings):  # type: ignore[misc]
         allowed = ["development", "staging", "production"]
         if v not in allowed:
             raise ValueError(f"Environment must be one of: {allowed}")
+        return v
+
+    @field_validator("secret_key")  # type: ignore[misc]
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Validate JWT secret key strength."""
+        if len(v) < 32:
+            raise ValueError("JWT secret key must be at least 32 characters long")
+        return v
+
+    @field_validator("database_url")  # type: ignore[misc]
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate database URL format."""
+        if not v.startswith("postgresql"):
+            raise ValueError("Database URL must be a PostgreSQL connection string")
         return v
 
     @property

@@ -11,8 +11,10 @@ Provides high-performance endpoints for:
 from datetime import datetime
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+
+from ..core.security import rate_limit_dependency
 
 from ..core.database_monitoring import get_database_alerts as core_get_database_alerts, get_database_health_report
 from ..services.database_services import (
@@ -29,10 +31,30 @@ router = APIRouter(prefix="/api/v1/database", tags=["Database Operations"])
 class PropertyLookupRequest(BaseModel):
     """Property lookup request model."""
 
-    latitude: float = Field(..., description="Latitude coordinate")
-    longitude: float = Field(..., description="Longitude coordinate")
-    radius_meters: float = Field(default=1000, description="Search radius in meters")
-    limit: int = Field(default=100, le=500, description="Maximum number of results")
+    latitude: float = Field(
+        ..., 
+        ge=-90, 
+        le=90, 
+        description="Latitude coordinate (-90 to 90)"
+    )
+    longitude: float = Field(
+        ..., 
+        ge=-180, 
+        le=180, 
+        description="Longitude coordinate (-180 to 180)"
+    )
+    radius_meters: float = Field(
+        default=1000, 
+        gt=0, 
+        le=50000, 
+        description="Search radius in meters (1-50000)"
+    )
+    limit: int = Field(
+        default=100, 
+        gt=0, 
+        le=500, 
+        description="Maximum number of results (1-500)"
+    )
 
 
 class PropertyLookupResponse(BaseModel):
@@ -78,7 +100,10 @@ class ETLPipelineRequest(BaseModel):
 
 # Property Lookup Endpoints
 @router.post("/property/lookup", response_model=PropertyLookupResponse)
-async def lookup_properties(request: PropertyLookupRequest) -> PropertyLookupResponse:
+async def lookup_properties(
+    request: PropertyLookupRequest,
+    _: None = Depends(rate_limit_dependency),
+) -> PropertyLookupResponse:
     """
     High-performance property lookup with geospatial search.
 
@@ -133,6 +158,7 @@ async def bulk_property_lookup(
     coordinates: List[List[float]] = Field(
         ..., description="List of [latitude, longitude] pairs"
     ),
+    _: None = Depends(rate_limit_dependency),
 ) -> Dict[str, Any]:
     """Perform bulk property lookups for multiple coordinates."""
     try:

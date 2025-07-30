@@ -2,52 +2,133 @@
 Main FastAPI application entry point.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from .api.auth import router as auth_router
 from .api.cache_monitoring import router as cache_router
 from .api.database_monitoring import router as database_monitoring_router
 from .api.database_operations import router as database_operations_router
+from .api.system_monitoring import router as system_monitoring_router
+from .core.config import get_settings
+from .core.exceptions import (
+    BaseAPIException,
+    api_exception_handler,
+    http_exception_handler,
+)
+from .core.security import add_security_headers
 from .core.database import (
     check_postgis_extension,
     get_database_info,
 )
-from .core.database_manager import connection_manager
-from .core.database_monitoring import (
-    database_monitor,
-    start_database_monitoring,
-    stop_database_monitoring,
-)
-from .services.redis_monitoring import redis_monitoring
+from .core.dependencies import cleanup_dependencies, get_dependency_container
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager."""
     # Startup
-    await connection_manager.initialize()
-    await start_database_monitoring()
+    container = get_dependency_container()
+    connection_manager = await container.get_connection_manager()
+    database_monitor = await container.get_database_monitor()
+    
+    # Start monitoring
+    try:
+        await database_monitor.start_monitoring()
+    except Exception as e:
+        logger.warning(f"Failed to start database monitoring: {e}")
+    
+    # Start adaptive pool management
+    try:
+        from .services.adaptive_pool_manager import adaptive_pool_manager
+        await adaptive_pool_manager.start_monitoring()
+    except Exception as e:
+        logger.warning(f"Failed to start adaptive pool management: {e}")
+    
+    # Start concurrency management
+    try:
+        from .services.concurrency_manager import concurrency_manager
+        await concurrency_manager.start()
+    except Exception as e:
+        logger.warning(f"Failed to start concurrency management: {e}")
+    
     yield
+    
     # Shutdown
-    await stop_database_monitoring()
-    await connection_manager.close()
+    try:
+        await database_monitor.stop_monitoring()
+    except Exception as e:
+        logger.warning(f"Failed to stop database monitoring: {e}")
+    
+    # Stop concurrency management
+    try:
+        from .services.concurrency_manager import concurrency_manager
+        await concurrency_manager.stop()
+    except Exception as e:
+        logger.warning(f"Failed to stop concurrency management: {e}")
+    
+    # Stop adaptive pool management
+    try:
+        from .services.adaptive_pool_manager import adaptive_pool_manager
+        await adaptive_pool_manager.stop_monitoring()
+    except Exception as e:
+        logger.warning(f"Failed to stop adaptive pool management: {e}")
+    
+    await cleanup_dependencies()
 
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
+    settings = get_settings()
+    
     app = FastAPI(
         title="Primer Seek Property API",
         description="Backend API for microschool property intelligence platform with comprehensive database management",
         version="0.1.0",
         lifespan=lifespan,
+        docs_url="/docs" if settings.is_development else None,
+        redoc_url="/redoc" if settings.is_development else None,
     )
+    
+    # Add security middleware
+    if settings.enable_https_only and not settings.is_development:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=["*.yourdomain.com", "yourdomain.com"]
+        )
+    
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["*"],
+    )
+    
+    # Add security headers middleware
+    @app.middleware("http")
+    async def add_security_headers_middleware(request: Request, call_next):
+        response = await call_next(request)
+        return add_security_headers(response)
 
-    # Include monitoring endpoints
+    # Add exception handlers
+    app.add_exception_handler(BaseAPIException, api_exception_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+
+    # Include routers
+    app.include_router(auth_router)
     app.include_router(cache_router)
     app.include_router(database_operations_router)
     app.include_router(database_monitoring_router)
+    app.include_router(system_monitoring_router)
 
     @app.get("/health/performance")
     async def health_performance() -> Dict[str, Any]:
