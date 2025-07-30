@@ -1,0 +1,267 @@
+# Dependabot configuration for Primer Seek Property Intelligence Platform
+# Automated dependency updates with security-first approach for compliance-critical system
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # =============================================================================
+  # PYTHON BACKEND DEPENDENCIES (Poetry)
+  # =============================================================================
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "America/New_York"
+
+    # Security-first update strategy
+    open-pull-requests-limit: 5
+
+    # Review assignment for compliance oversight
+    reviewers:
+      - "primer-team"
+    assignees:
+      - "davidcavise"
+
+    # Semantic commit messages for conventional commits
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+
+    # Dependency grouping for manageable PRs
+    groups:
+      # Critical security and core framework updates
+      critical:
+        patterns:
+          - "fastapi*"
+          - "uvicorn*"
+          - "pydantic*"
+          - "sqlalchemy*"
+          - "alembic*"
+          - "asyncpg*"
+        update-types:
+          - "security"
+          - "patch"
+
+      # Database and caching infrastructure
+      database:
+        patterns:
+          - "redis*"
+          - "supabase*"
+          - "psycopg2*"
+          - "geoalchemy2*"
+          - "duckdb*"
+
+      # Security and authentication
+      security:
+        patterns:
+          - "python-jose*"
+          - "passlib*"
+          - "bandit*"
+          - "safety*"
+        update-types:
+          - "security"
+          - "patch"
+          - "minor"
+
+      # Development tools
+      dev-tools:
+        patterns:
+          - "pytest*"
+          - "black*"
+          - "ruff*"
+          - "mypy*"
+        dependency-type: "development"
+
+    # Allow automatic merging for security patches
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+      - dependency-type: "indirect"
+        update-type: "security"
+
+    # Ignore problematic or stable dependencies
+    ignore:
+      # Pin to stable PostGIS versions for geospatial compliance
+      - dependency-name: "geopandas"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "shapely"
+        update-types: ["version-update:semver-major"]
+
+  # =============================================================================
+  # FRONTEND DEPENDENCIES (pnpm)
+  # =============================================================================
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+      timezone: "America/New_York"
+
+    open-pull-requests-limit: 5
+
+    reviewers:
+      - "primer-team"
+    assignees:
+      - "davidcavise"
+
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+
+    # Frontend dependency grouping
+    groups:
+      # React ecosystem core
+      react-core:
+        patterns:
+          - "react*"
+          - "@types/react*"
+          - "@vitejs/*"
+        update-types:
+          - "security"
+          - "patch"
+
+      # UI and styling
+      ui-styling:
+        patterns:
+          - "tailwindcss*"
+          - "@tailwindcss/*"
+          - "clsx*"
+          - "tailwind-merge*"
+
+      # State management and data fetching
+      state-data:
+        patterns:
+          - "zustand*"
+          - "@tanstack/*"
+
+      # Mapping and geospatial
+      mapping:
+        patterns:
+          - "mapbox-gl*"
+          - "@types/mapbox-gl*"
+
+      # Development tools
+      dev-tools:
+        patterns:
+          - "typescript*"
+          - "eslint*"
+          - "@typescript-eslint/*"
+          - "prettier*"
+          - "vite*"
+        dependency-type: "development"
+
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+      - dependency-type: "indirect"
+        update-type: "security"
+
+    ignore:
+      # Pin TypeScript to avoid breaking changes
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # Pin React to stable LTS
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+
+  # =============================================================================
+  # SHARED TYPES DEPENDENCIES (if package.json exists)
+  # =============================================================================
+  - package-ecosystem: "npm"
+    directory: "/shared"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "11:00"
+      timezone: "America/New_York"
+
+    open-pull-requests-limit: 3
+
+    reviewers:
+      - "primer-team"
+    assignees:
+      - "davidcavise"
+
+    commit-message:
+      prefix: "deps(shared)"
+      include: "scope"
+
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+      - dependency-type: "indirect"
+        update-type: "security"
+
+  # =============================================================================
+  # GITHUB ACTIONS DEPENDENCIES
+  # =============================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "America/New_York"
+
+    open-pull-requests-limit: 3
+
+    reviewers:
+      - "primer-team"
+    assignees:
+      - "davidcavise"
+
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+    # Group all GitHub Actions updates
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+
+  # =============================================================================
+  # DOCKER DEPENDENCIES (if Dockerfiles exist)
+  # =============================================================================
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "10:00"
+      timezone: "America/New_York"
+
+    open-pull-requests-limit: 2
+
+    reviewers:
+      - "primer-team"
+    assignees:
+      - "davidcavise"
+
+    commit-message:
+      prefix: "deps(docker)"
+      include: "scope"
+
+    # Focus on security updates for base images
+    groups:
+      base-images:
+        patterns:
+          - "python*"
+          - "node*"
+          - "postgres*"
+          - "redis*"
+
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+      - dependency-type: "indirect"
+        update-type: "security"

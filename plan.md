@@ -3,6 +3,28 @@
 ## Overview
 Primer Seek is a specialized property intelligence platform designed to identify and qualify viable microschool locations across Texas, Alabama, and Florida markets. The platform transforms fragmented government data into actionable property insights, enabling Primer's Real Estate team to efficiently locate the rare properties (~0.1% of market) that meet strict educational compliance requirements. The system consolidates 15+ million Regrid parcel records with targeted FOIA government data to provide compliance-first property scoring and off-market sourcing intelligence.
 
+## Data Architecture Analysis (Completed)
+Based on RegridSchema.xlsx and CSV file analysis:
+
+**Essential Regrid Columns (13 critical fields):**
+- `ll_uuid` (Primary key), `recrdareano` (Building sq ft - 6,000+ requirement)
+- `lat`/`lon` (PostGIS coordinates), `address`, `scity`, `county`, `state2`, `szip`
+- `zoning`/`zoning_description` (Educational use compatibility)
+- `yearbuilt` (ADA compliance indicator >=1990), `usecode`/`usedesc` (Occupancy)
+- `numstories` (Multi-story fire safety), `struct` (Building exists confirmation)
+
+**Data Quality Findings:**
+- TX counties use identical schema (254+ files confirmed)
+- Urban counties have better building size data completeness
+- Rural counties often lack `recrdareano` (critical size field)
+- City-based UX requires cross-county city boundary handling
+
+**FOIA Integration Strategy:**
+- Building Use field maps to occupancy classification (E, A-2, A-3, F-1, B, M, U)
+- Template-based column mapping stored as JSONB for recurring sources
+- Fuzzy address matching with confidence scoring (0-100 scale)
+- Multi-source validation for compliance determinations
+
 ## 1. Project Setup
 
 ### Repository and Environment
@@ -54,22 +76,22 @@ Primer Seek is a specialized property intelligence platform designed to identify
   - PostGIS extension configured for geospatial operations
   - Database connection pooling established
   - SSL and security settings configured
-- [ ] Create development branch for testing
+- [x] Create development branch for testing
   - Set up branch-specific database instance
   - Configure automated migration testing
   - Set up data seeding for microschool compliance testing
-- [ ] Configure Redis instance for caching
+- [x] Configure Redis instance for caching
   - Set up Redis for session caching
   - Configure Redis for FOIA data and compliance query caching
   - Set up Redis clustering for production
 
 ### CI/CD Pipeline
-- [ ] Set up GitHub Actions workflows
+- [x] Set up GitHub Actions workflows
   - Automated testing on pull requests
   - Code quality checks (linting, formatting)
   - Security vulnerability scanning
   - Automated dependency updates
-- [ ] Configure deployment pipelines
+- [x] Configure deployment pipelines
   - Staging environment deployment
   - Production deployment with approval gates
   - Database migration automation
@@ -79,10 +101,11 @@ Primer Seek is a specialized property intelligence platform designed to identify
 
 ### Database Schema and Migrations
 - [ ] Design microschool-focused database schema
-  - Properties table with geospatial columns and compliance attributes
-  - Compliance_data table for fire sprinkler, zoning, and occupancy data
-  - FOIA_sources table for government data tracking and freshness
-  - Property_tiers table for Tier 1/2/3 qualification classification
+  - Enhanced properties table with Regrid essential columns (recrdareano, zoning, yearbuilt, usecode, numstories)
+  - Computed compliance fields (size_compliant >=6000sqft, ada_likely_compliant >=1990)
+  - Property_tiers table for Tier 1/2/3/Disqualified classification with confidence scoring
+  - Compliance_data table for FOIA fire sprinkler, occupancy, and ADA data integration
+  - FOIA_sources table with template-based column mapping (JSONB) for recurring imports
   - Property_owner_intelligence table for off-market sourcing data
 - [ ] Create initial database migrations
   - Properties table with PostGIS geometry and compliance scoring columns
@@ -148,13 +171,13 @@ Primer Seek is a specialized property intelligence platform designed to identify
 - [ ] Implement DuckDB integration for massive CSV processing
   - DuckDB connection management optimized for 15M+ record processing
   - Batch processing in 1,000-row chunks for memory efficiency
-  - RegridSchema.xlsx-based column mapping system
-  - Performance monitoring targeting <30 minute total import time
+  - Priority column mapping: ll_uuid, recrdareano, lat/lon, address, zoning, yearbuilt, usecode, numstories
+  - Performance monitoring targeting <30 minute total import time for 254+ TX county files
 - [ ] Create Regrid CSV import pipeline
-  - File validation for county-specific CSV formats
-  - Schema detection and RegridSchema.xlsx mapping application
-  - Selective column import to optimize storage (only required fields)
-  - Progress tracking across 254+ Texas county files
+  - File validation for county-specific CSV formats (confirmed: TX counties use identical schema)
+  - Essential column extraction (13 critical fields vs. 100+ available)
+  - Data quality assessment (urban vs. rural county completeness variations)
+  - Progress tracking across 254+ Texas county files with error handling
 - [ ] Implement Regrid data normalization processes
   - Address standardization for government data matching
   - Coordinate validation and PostGIS geometry creation
@@ -168,10 +191,10 @@ Primer Seek is a specialized property intelligence platform designed to identify
 
 ### FOIA Data Integration Engine
 - [ ] Implement intelligent FOIA data processing system
-  - Template-based column mapping for recurring sources (Dallas Fire, Austin Building)
-  - Semantic recognition for non-standard government column names
-  - Multi-source data reconciliation and conflict resolution
-  - Data freshness tracking with expiration warnings
+  - Template-based column mapping stored as JSONB (Building Use -> occupancy classification)
+  - Fuzzy address matching for property association (confirmed approach from FOIA_Example.csv)
+  - Multi-source data reconciliation with confidence scoring (0-100 scale)
+  - Data freshness tracking with expiration warnings for compliance accuracy
 - [ ] Create FOIA data ingestion pipeline
   - CSV format validation for government department exports
   - Fuzzy address matching for property association

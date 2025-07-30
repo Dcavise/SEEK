@@ -441,3 +441,4 @@ bandit-report.json
 .ruff_cache/
 .pre-commit-cache/
 .safety-cache/
+CSV/

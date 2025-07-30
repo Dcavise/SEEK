@@ -4,19 +4,24 @@ Main FastAPI application entry point.
 
 from fastapi import FastAPI, HTTPException
 
+from .api.cache_monitoring import router as cache_router
 from .core.database import (
     check_postgis_extension,
     get_database_info,
 )
+from .services.redis_monitoring import redis_monitoring
 
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     app = FastAPI(
         title="Primer Seek Property API",
-        description="Backend API for property sourcing and management",
+        description="Backend API for microschool property intelligence platform with Redis caching infrastructure",
         version="0.1.0",
     )
+
+    # Include cache monitoring endpoints
+    app.include_router(cache_router)
 
     @app.get("/")
     async def root() -> dict[str, str]:
@@ -26,7 +31,28 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         """Health check endpoint."""
+        # Basic health check - detailed checks available at /health/database and /api/v1/cache/health
         return {"status": "healthy"}
+
+    @app.get("/health/redis")
+    async def health_redis() -> dict:
+        """Redis health check endpoint."""
+        try:
+            health_data = await redis_monitoring.health_check()
+
+            if health_data["status"] == "unhealthy":
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Redis health check failed: {health_data.get('error', 'Unknown error')}",
+                )
+
+            return health_data
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=503, detail=f"Redis health check failed: {str(e)}"
+            )
 
     @app.get("/health/database")
     async def health_database() -> dict:

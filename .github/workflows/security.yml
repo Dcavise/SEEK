@@ -1,0 +1,500 @@
+# Security Scanning Pipeline for Primer Seek Property Intelligence Platform
+# Comprehensive security analysis with zero-tolerance policy for compliance-critical data
+# Includes SAST, dependency scanning, container security, and secret detection
+
+name: Security Scanning
+
+on:
+  # Run on all pushes to main and develop branches
+  push:
+    branches: [main, develop]
+
+  # Run on all pull requests
+  pull_request:
+    branches: [main, develop]
+
+  # Scheduled weekly security scans
+  schedule:
+    - cron: '0 6 * * 1'  # Monday 6 AM UTC
+
+  # Manual trigger for ad-hoc security reviews
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - dependencies-only
+          - sast-only
+          - containers-only
+
+# Security-focused permissions
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+# Ensure only one security scan per ref to avoid resource conflicts
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Python configuration
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "1.8.0"
+
+  # Node.js configuration
+  NODE_VERSION: "18"
+  PNPM_VERSION: "8.15.6"
+
+jobs:
+  # =============================================================================
+  # DEPENDENCY VULNERABILITY SCANNING
+  # =============================================================================
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type != 'sast-only' && github.event.inputs.scan_type != 'containers-only'
+
+    strategy:
+      matrix:
+        ecosystem: [python, nodejs]
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Python dependency scanning
+      - name: Set up Python (Python scan)
+        if: matrix.ecosystem == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry (Python scan)
+        if: matrix.ecosystem == 'python'
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+
+      - name: Python dependency security check
+        if: matrix.ecosystem == 'python'
+        working-directory: backend
+        run: |
+          poetry install --no-interaction
+
+          # Safety check for known vulnerabilities
+          poetry run safety check --json --output safety-report.json || true
+
+          # Audit Poetry dependencies
+          poetry audit --json --output poetry-audit.json || true
+
+          # Generate vulnerability summary
+          echo "## 🐍 Python Security Report" >> python-security-summary.md
+          if [ -s safety-report.json ]; then
+            echo "### Safety Scan Results:" >> python-security-summary.md
+            cat safety-report.json | jq -r '.vulnerabilities[] | "- **\(.package_name)** (\(.installed_version)): \(.advisory)"' >> python-security-summary.md || echo "No vulnerabilities found" >> python-security-summary.md
+          fi
+
+      # Node.js dependency scanning
+      - name: Set up Node.js (Node.js scan)
+        if: matrix.ecosystem == 'nodejs'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm (Node.js scan)
+        if: matrix.ecosystem == 'nodejs'
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Node.js dependency security check
+        if: matrix.ecosystem == 'nodejs'
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+
+          # npm audit for vulnerabilities
+          pnpm audit --json > npm-audit.json || true
+
+          # Generate vulnerability summary
+          echo "## 📦 Node.js Security Report" >> nodejs-security-summary.md
+          if [ -s npm-audit.json ]; then
+            echo "### NPM Audit Results:" >> nodejs-security-summary.md
+            cat npm-audit.json | jq -r '.vulnerabilities | to_entries[] | "- **\(.key)**: \(.value.severity) severity"' >> nodejs-security-summary.md || echo "No vulnerabilities found" >> nodejs-security-summary.md
+          fi
+
+      # Snyk vulnerability scanning
+      - name: Snyk vulnerability scan
+        uses: snyk/actions/setup@master
+
+      - name: Run Snyk test
+        run: |
+          if [ "${{ matrix.ecosystem }}" == "python" ]; then
+            cd backend && snyk test --file=pyproject.toml --package-manager=poetry --json --severity-threshold=medium > snyk-python.json || true
+          elif [ "${{ matrix.ecosystem }}" == "nodejs" ]; then
+            cd frontend && snyk test --file=package.json --json --severity-threshold=medium > snyk-nodejs.json || true
+          fi
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload dependency scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-${{ matrix.ecosystem }}
+          path: |
+            **/*-security-summary.md
+            **/*-audit.json
+            **/*-report.json
+            **/snyk-*.json
+
+  # =============================================================================
+  # STATIC APPLICATION SECURITY TESTING (SAST)
+  # =============================================================================
+  sast-analysis:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type != 'dependencies-only' && github.event.inputs.scan_type != 'containers-only'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # CodeQL Analysis
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python,javascript"
+
+      # Python-specific security analysis
+      - name: Set up Python for Bandit
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+
+      - name: Python security analysis with Bandit
+        working-directory: backend
+        run: |
+          poetry install --no-interaction
+
+          # Run Bandit with comprehensive reporting
+          poetry run bandit -r src/ \
+            -f json \
+            -o bandit-security-report.json \
+            --severity-level medium \
+            --confidence-level medium || true
+
+          # Generate human-readable report
+          poetry run bandit -r src/ \
+            -f txt \
+            -o bandit-security-report.txt \
+            --severity-level medium \
+            --confidence-level medium || true
+
+          # Security summary
+          echo "## 🔐 Python Security Analysis (Bandit)" >> bandit-summary.md
+          echo "$(date): Security scan completed" >> bandit-summary.md
+          echo "" >> bandit-summary.md
+
+          if [ -s bandit-security-report.json ]; then
+            ISSUES=$(cat bandit-security-report.json | jq '.results | length')
+            echo "**Issues found:** $ISSUES" >> bandit-summary.md
+
+            if [ "$ISSUES" -gt 0 ]; then
+              echo "### Critical Security Issues:" >> bandit-summary.md
+              cat bandit-security-report.json | jq -r '.results[] | select(.issue_severity == "HIGH") | "- **\(.test_name)** in \(.filename):\(.line_number) - \(.issue_text)"' >> bandit-summary.md || echo "No HIGH severity issues" >> bandit-summary.md
+            fi
+          else
+            echo "**Issues found:** 0" >> bandit-summary.md
+          fi
+
+      # Semgrep SAST scanning
+      - name: Semgrep SAST analysis
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/owasp-top-ten
+            p/python
+            p/typescript
+            p/react
+          generateSarif: "1"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload SAST results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-analysis-results
+          path: |
+            bandit-*.json
+            bandit-*.txt
+            bandit-summary.md
+            semgrep.sarif
+
+  # =============================================================================
+  # SECRET DETECTION
+  # =============================================================================
+  secret-detection:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type != 'dependencies-only' && github.event.inputs.scan_type != 'containers-only'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # TruffleHog secret detection
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      # GitLeaks secret detection
+      - name: GitLeaks secret detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      # Custom secret patterns for Primer-specific secrets
+      - name: Custom secret detection
+        run: |
+          echo "## 🔍 Secret Detection Report" > secret-detection-summary.md
+          echo "$(date): Secret detection scan completed" >> secret-detection-summary.md
+          echo "" >> secret-detection-summary.md
+
+          # Check for common patterns
+          FOUND_SECRETS=false
+
+          # Check for Supabase keys
+          if grep -r "sb-.*-auth-token" . --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" --exclude="*.yml" --exclude="*.yaml"; then
+            echo "⚠️ **Potential Supabase tokens found**" >> secret-detection-summary.md
+            FOUND_SECRETS=true
+          fi
+
+          # Check for API keys
+          if grep -r -i "api[_-]key.*=" . --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" --exclude="*.yml" --exclude="*.yaml"; then
+            echo "⚠️ **Potential API keys found**" >> secret-detection-summary.md
+            FOUND_SECRETS=true
+          fi
+
+          # Check for Redis URLs with credentials
+          if grep -r "redis://.*:.*@" . --exclude-dir=.git --exclude-dir=node_modules --exclude="*.md" --exclude="*.yml" --exclude="*.yaml"; then
+            echo "⚠️ **Redis URLs with credentials found**" >> secret-detection-summary.md
+            FOUND_SECRETS=true
+          fi
+
+          if [ "$FOUND_SECRETS" = false ]; then
+            echo "✅ **No secrets detected**" >> secret-detection-summary.md
+          fi
+
+      - name: Upload secret detection results
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-detection-results
+          path: |
+            secret-detection-summary.md
+
+  # =============================================================================
+  # CONTAINER SECURITY SCANNING
+  # =============================================================================
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type != 'dependencies-only' && github.event.inputs.scan_type != 'sast-only'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Trivy filesystem scan
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-fs-results.sarif'
+
+      # Docker image security scanning (if Dockerfiles exist)
+      - name: Build Docker images for scanning
+        run: |
+          if [ -f "Dockerfile" ]; then
+            docker build -t primer-seek:security-scan .
+          fi
+
+          if [ -f "backend/Dockerfile" ]; then
+            docker build -t primer-seek-backend:security-scan backend/
+          fi
+
+          if [ -f "frontend/Dockerfile" ]; then
+            docker build -t primer-seek-frontend:security-scan frontend/
+          fi
+
+      - name: Trivy Docker image scan
+        run: |
+          for image in $(docker images --format "table {{.Repository}}:{{.Tag}}" | grep "primer-seek.*:security-scan"); do
+            echo "Scanning $image"
+            trivy image --format sarif --output "trivy-${image##*/}.sarif" "$image" || true
+          done
+
+      - name: Upload container scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-security-results
+          path: |
+            trivy-*.sarif
+
+  # =============================================================================
+  # SECURITY REPORTING & COMPLIANCE
+  # =============================================================================
+  security-report:
+    name: Security Report Generation
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, sast-analysis, secret-detection, container-security]
+    if: always()
+
+    steps:
+      - name: Download all security artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: security-results/
+
+      - name: Generate comprehensive security report
+        run: |
+          echo "# 🛡️ Security Scan Report" > SECURITY_REPORT.md
+          echo "**Date:** $(date)" >> SECURITY_REPORT.md
+          echo "**Commit:** ${{ github.sha }}" >> SECURITY_REPORT.md
+          echo "**Branch:** ${{ github.ref_name }}" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+
+          echo "## 📊 Scan Summary" >> SECURITY_REPORT.md
+          echo "| Category | Status | Details |" >> SECURITY_REPORT.md
+          echo "|----------|--------|---------|" >> SECURITY_REPORT.md
+          echo "| Dependencies | ${{ needs.dependency-scan.result == 'success' && '✅ Pass' || '❌ Fail' }} | Vulnerability scanning |" >> SECURITY_REPORT.md
+          echo "| SAST Analysis | ${{ needs.sast-analysis.result == 'success' && '✅ Pass' || '❌ Fail' }} | Static code analysis |" >> SECURITY_REPORT.md
+          echo "| Secret Detection | ${{ needs.secret-detection.result == 'success' && '✅ Pass' || '❌ Fail' }} | Credential scanning |" >> SECURITY_REPORT.md
+          echo "| Container Security | ${{ needs.container-security.result == 'success' && '✅ Pass' || '❌ Fail' }} | Image vulnerability scan |" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+
+          # Include individual reports if they exist
+          for report in security-results/**/*-summary.md; do
+            if [ -f "$report" ]; then
+              echo "" >> SECURITY_REPORT.md
+              cat "$report" >> SECURITY_REPORT.md
+            fi
+          done
+
+      - name: Security compliance check
+        run: |
+          echo "=== SECURITY COMPLIANCE CHECK ==="
+
+          FAILED_JOBS=0
+
+          if [[ "${{ needs.dependency-scan.result }}" == "failure" ]]; then
+            echo "❌ Dependency scan failed - CRITICAL for compliance"
+            FAILED_JOBS=$((FAILED_JOBS + 1))
+          fi
+
+          if [[ "${{ needs.sast-analysis.result }}" == "failure" ]]; then
+            echo "❌ SAST analysis failed - HIGH priority for compliance"
+            FAILED_JOBS=$((FAILED_JOBS + 1))
+          fi
+
+          if [[ "${{ needs.secret-detection.result }}" == "failure" ]]; then
+            echo "❌ Secret detection failed - CRITICAL for compliance"
+            FAILED_JOBS=$((FAILED_JOBS + 1))
+          fi
+
+          if [[ "${{ needs.container-security.result }}" == "failure" ]]; then
+            echo "⚠️ Container security scan failed - MEDIUM priority"
+          fi
+
+          if [ $FAILED_JOBS -gt 0 ]; then
+            echo "🚨 SECURITY COMPLIANCE FAILURE: $FAILED_JOBS critical security checks failed"
+            exit 1
+          else
+            echo "✅ All security compliance checks passed"
+          fi
+
+      - name: Upload comprehensive security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-security-report
+          path: |
+            SECURITY_REPORT.md
+            security-results/
+
+      - name: Comment PR with security results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo, number } = context.issue;
+
+            let report = "## 🛡️ Security Scan Results\n\n";
+
+            // Add scan status
+            report += "| Security Check | Status |\n";
+            report += "|----------------|--------|\n";
+            report += `| Dependencies | ${{ needs.dependency-scan.result == 'success' && '✅ Pass' || '❌ Fail' }} |\n`;
+            report += `| SAST Analysis | ${{ needs.sast-analysis.result == 'success' && '✅ Pass' || '❌ Fail' }} |\n`;
+            report += `| Secret Detection | ${{ needs.secret-detection.result == 'success' && '✅ Pass' || '❌ Fail' }} |\n`;
+            report += `| Container Security | ${{ needs.container-security.result == 'success' && '✅ Pass' || '❌ Fail' }} |\n`;
+
+            report += "\n### 🎯 Compliance Status\n";
+            const failedJobs = ['dependency-scan', 'sast-analysis', 'secret-detection'].filter(
+              job => context.payload.workflow_run?.conclusion !== 'success'
+            ).length;
+
+            if (failedJobs > 0) {
+              report += `❌ **COMPLIANCE FAILURE**: ${failedJobs} critical security checks failed\n`;
+              report += "**Action Required**: Address security issues before merging.\n";
+            } else {
+              report += "✅ **COMPLIANCE PASSED**: All security checks successful\n";
+            }
+
+            report += `\n**Full Report**: [Download Security Report](${context.payload.repository?.html_url}/actions/runs/${context.runId})\n`;
+
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: report
+            });

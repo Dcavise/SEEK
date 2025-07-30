@@ -1,0 +1,171 @@
+name: 🔒 Security Vulnerability Report
+description: Report a security vulnerability in the Primer Seek platform
+title: "[SECURITY] "
+labels: ["security", "bug", "priority:critical"]
+assignees:
+  - davidcavise
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Security Vulnerability Report
+
+        **⚠️ IMPORTANT**: If this is a critical security issue that could compromise user data or system integrity, please contact the security team directly via encrypted communication instead of filing a public issue.
+
+        For non-critical security improvements or questions, please continue with this form.
+
+  - type: checkboxes
+    id: security-checklist
+    attributes:
+      label: Security Assessment
+      description: Please confirm the following before submitting
+      options:
+        - label: This is NOT a critical vulnerability that requires immediate private disclosure
+          required: true
+        - label: I have checked existing security issues to avoid duplicates
+          required: true
+        - label: I understand this issue will be publicly visible
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How severe is this vulnerability?
+      options:
+        - Low - Minimal impact, requires unusual conditions
+        - Medium - Moderate impact, standard exploitation
+        - High - Significant impact, easy to exploit
+        - Critical - Severe impact, trivial to exploit
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the system is affected?
+      options:
+        - Backend API (FastAPI)
+        - Frontend Application (React)
+        - Database (PostgreSQL/Supabase)
+        - Authentication System
+        - Data Processing Pipeline
+        - CI/CD Infrastructure
+        - Third-party Dependencies
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: textarea
+    id: vulnerability-description
+    attributes:
+      label: Vulnerability Description
+      description: Detailed description of the security issue
+      placeholder: |
+        Provide a clear and detailed description of the vulnerability including:
+        - What the vulnerability is
+        - How it can be exploited
+        - What data/systems are at risk
+        - Any additional context
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the vulnerability
+      placeholder: |
+        1. Navigate to...
+        2. Enter data...
+        3. Click on...
+        4. Observe...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Secure Behavior
+      description: What should happen instead?
+      placeholder: Describe the expected secure behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: Describe the actual insecure behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact-assessment
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact of this vulnerability?
+      placeholder: |
+        Consider:
+        - Data confidentiality impact
+        - Data integrity impact
+        - System availability impact
+        - Regulatory compliance implications
+        - User privacy concerns
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix (Optional)
+      description: If you have suggestions for fixing this vulnerability
+      placeholder: Describe potential solutions or mitigations
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Information
+      description: Relevant environment details
+      placeholder: |
+        - Browser/Client:
+        - Operating System:
+        - Version/Commit:
+        - Configuration details:
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: additional-info
+    attributes:
+      label: Additional Information
+      description: Please check all that apply
+      options:
+        - label: This vulnerability affects user data
+        - label: This vulnerability affects administrative functions
+        - label: This vulnerability affects external integrations
+        - label: This vulnerability affects CI/CD pipeline
+        - label: This issue includes potential fixes
+        - label: This issue requires immediate attention
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### 🔒 Security Response Process
+
+        1. **Acknowledgment**: We will acknowledge receipt within 24 hours
+        2. **Assessment**: Security team will assess severity and impact
+        3. **Response**: Critical issues will be addressed within 48 hours
+        4. **Resolution**: Fix will be implemented and tested
+        5. **Disclosure**: Coordinated disclosure following responsible practices
+
+        ### 📞 Emergency Contact
+
+        For critical security issues requiring immediate attention:
+        - Email: security@primer.com (encrypted)
+        - Priority: Use "URGENT SECURITY" in subject line
+
+        Thank you for helping keep the Primer Seek platform secure!

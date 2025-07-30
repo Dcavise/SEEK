@@ -1,0 +1,105 @@
+# PR Labeler Configuration for Primer Seek Property Platform
+# Automatically applies labels based on file patterns
+
+# Backend Changes
+"backend":
+  - backend/**
+  - backend/pyproject.toml
+  - backend/poetry.lock
+
+"backend:api":
+  - backend/src/api/**
+  - backend/src/main.py
+
+"backend:database":
+  - backend/src/models/**
+  - backend/src/core/database.py
+  - supabase/**
+
+"backend:security":
+  - backend/src/core/auth.py
+  - backend/src/services/auth/**
+
+# Frontend Changes
+"frontend":
+  - frontend/**
+  - frontend/package.json
+  - frontend/pnpm-lock.yaml
+
+"frontend:ui":
+  - frontend/src/components/**
+  - frontend/src/**/*.tsx
+
+"frontend:mapping":
+  - frontend/src/components/Map/**
+  - frontend/src/services/mapping/**
+
+# Shared Changes
+"shared":
+  - shared/**
+
+# Configuration Changes
+"config":
+  - "*.json"
+  - "*.toml"
+  - "*.yaml"
+  - "*.yml"
+  - ".env*"
+  - "tsconfig*.json"
+
+# Documentation Changes
+"documentation":
+  - "*.md"
+  - docs/**
+  - CLAUDE.md
+  - README.md
+
+# CI/CD Changes
+"ci/cd":
+  - .github/**
+  - .pre-commit-config.yaml
+
+# Security Changes
+"security":
+  - .github/workflows/security.yml
+  - bandit.yaml
+  - .secrets.baseline
+
+# Dependencies
+"dependencies":
+  - backend/poetry.lock
+  - frontend/pnpm-lock.yaml
+  - "**/package.json"
+  - backend/pyproject.toml
+
+# Testing
+"testing":
+  - "**/*test*"
+  - "**/test_*"
+  - pytest.ini
+  - jest.config.*
+
+# Database/Migration
+"database":
+  - supabase/migrations/**
+  - backend/src/models/**
+  - "**/alembic/**"
+
+# Performance
+"performance":
+  - "**/cache*"
+  - "**/redis*"
+  - backend/src/services/cache*
+
+# Geospatial
+"geospatial":
+  - "**/mapping/**"
+  - "**/geospatial/**"
+  - "**/*map*"
+  - "**/*geo*"
+
+# Scripts
+"scripts":
+  - scripts/**
+  - "**/*.sh"
+  - "**/*.py"

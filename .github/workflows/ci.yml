@@ -1,0 +1,471 @@
+# Comprehensive CI/CD Pipeline for Primer Seek Property Intelligence Platform
+# This workflow provides parallel testing, code quality checks, and security scanning
+# for both Python FastAPI backend and React TypeScript frontend in the monorepo.
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch: # Manual trigger
+
+# Ensure only one CI run per PR/branch to optimize resource usage
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Python configuration
+  PYTHON_VERSION: "3.12"
+  POETRY_VERSION: "1.8.0"
+
+  # Node.js configuration
+  NODE_VERSION: "18"
+  PNPM_VERSION: "8.15.6"
+
+  # Coverage thresholds for compliance-critical system
+  BACKEND_COVERAGE_THRESHOLD: 90
+  FRONTEND_COVERAGE_THRESHOLD: 85
+
+  # Cache keys for consistent caching across jobs
+  POETRY_CACHE_KEY: poetry-${{ hashFiles('backend/poetry.lock') }}
+  PNPM_CACHE_KEY: pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+jobs:
+  # =============================================================================
+  # CHANGES DETECTION - Optimize CI by running only affected parts
+  # =============================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      shared: ${{ steps.changes.outputs.shared }}
+      docs: ${{ steps.changes.outputs.docs }}
+      scripts: ${{ steps.changes.outputs.scripts }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'pyproject.toml'
+              - 'poetry.lock'
+            frontend:
+              - 'frontend/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+            shared:
+              - 'shared/**'
+            docs:
+              - '*.md'
+              - 'docs/**'
+            scripts:
+              - 'scripts/**'
+              - '.github/**'
+
+  # =============================================================================
+  # BACKEND TESTING & QUALITY CHECKS
+  # =============================================================================
+  backend-tests:
+    name: Backend Tests & Quality
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.shared == 'true'
+
+    # Test matrix for comprehensive Python version coverage
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+      fail-fast: false
+
+    # Service containers for integration tests
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_primer_seek
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache Poetry installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pypoetry
+          key: poetry-${{ runner.os }}-${{ env.POETRY_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: ${{ runner.os }}-python-${{ matrix.python-version }}-${{ env.POETRY_CACHE_KEY }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ matrix.python-version }}-poetry-
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          poetry install --no-interaction --no-ansi
+          poetry run pip list
+
+      - name: Set up test environment
+        working-directory: backend
+        run: |
+          cp .env.example .env.test || echo "DATABASE_URL=postgresql://test_user:test_password@localhost:5432/test_primer_seek" > .env.test
+          echo "REDIS_URL=redis://localhost:6379/0" >> .env.test
+          echo "ENVIRONMENT=test" >> .env.test
+
+      # =============================================================================
+      # CODE QUALITY CHECKS (Mirror pre-commit hooks)
+      # =============================================================================
+      - name: Format code with Black
+        working-directory: backend
+        run: poetry run black --check --diff src/
+
+      - name: Lint with Ruff
+        working-directory: backend
+        run: |
+          poetry run ruff check src/
+          poetry run ruff format --check src/
+
+      - name: Type check with MyPy
+        working-directory: backend
+        run: poetry run mypy src/
+
+      - name: Security scan with Bandit
+        working-directory: backend
+        run: |
+          poetry run bandit -r src/ -f json -o bandit-report.json || true
+          poetry run bandit -r src/ --severity-level medium
+
+      - name: Dependency security check
+        working-directory: backend
+        run: poetry run safety check --json --output safety-report.json || true
+
+      # =============================================================================
+      # COMPREHENSIVE TESTING
+      # =============================================================================
+      - name: Run unit tests
+        working-directory: backend
+        run: |
+          poetry run pytest tests/unit/ -v \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-fail-under=${{ env.BACKEND_COVERAGE_THRESHOLD }} \
+            --junitxml=pytest-unit.xml
+
+      - name: Run integration tests
+        working-directory: backend
+        run: |
+          poetry run pytest tests/integration/ -v \
+            --cov=src \
+            --cov-append \
+            --cov-report=xml \
+            --cov-report=html \
+            --junitxml=pytest-integration.xml
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_primer_seek
+          REDIS_URL: redis://localhost:6379/0
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results-py${{ matrix.python-version }}
+          path: |
+            backend/pytest-*.xml
+            backend/htmlcov/
+            backend/bandit-report.json
+            backend/safety-report.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: backend/coverage.xml
+          flags: backend
+          name: backend-coverage-py${{ matrix.python-version }}
+
+  # =============================================================================
+  # FRONTEND TESTING & QUALITY CHECKS
+  # =============================================================================
+  frontend-tests:
+    name: Frontend Tests & Quality
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.shared == 'true'
+
+    # Test matrix for Node.js versions
+    strategy:
+      matrix:
+        node-version: ["18", "20"]
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ env.PNPM_CACHE_KEY }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install shared dependencies
+        working-directory: shared
+        run: |
+          if [ -f "package.json" ]; then
+            pnpm install --frozen-lockfile
+          fi
+
+      # =============================================================================
+      # CODE QUALITY CHECKS
+      # =============================================================================
+      - name: Lint with ESLint
+        working-directory: frontend
+        run: pnpm run lint
+
+      - name: Format check with Prettier
+        working-directory: frontend
+        run: pnpm run format:check
+
+      - name: Type check with TypeScript
+        working-directory: frontend
+        run: pnpm run type-check
+
+      - name: Validate shared types
+        working-directory: shared
+        run: |
+          if [ -f "tsconfig.json" ]; then
+            npx tsc --noEmit --skipLibCheck
+          fi
+
+      # =============================================================================
+      # BUILD & TEST
+      # =============================================================================
+      - name: Build application
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Run tests (when available)
+        working-directory: frontend
+        run: |
+          # Add test script when Jest/Vitest is configured
+          if grep -q '"test"' package.json; then
+            pnpm run test --coverage --watchAll=false
+          else
+            echo "Tests not yet configured - skipping test execution"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-node${{ matrix.node-version }}
+          path: frontend/dist/
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-test-results-node${{ matrix.node-version }}
+          path: |
+            frontend/coverage/
+            frontend/test-results.xml
+
+  # =============================================================================
+  # SECURITY SCANNING
+  # =============================================================================
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.backend == 'true' || needs.detect-changes.outputs.frontend == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Python dependency check
+        if: needs.detect-changes.outputs.backend == 'true'
+        working-directory: backend
+        run: |
+          pip install safety
+          safety check --json --output safety-scan.json || true
+          cat safety-scan.json
+
+      - name: Node.js audit
+        if: needs.detect-changes.outputs.frontend == 'true'
+        working-directory: frontend
+        run: |
+          npm audit --audit-level=moderate --json > npm-audit.json || true
+          cat npm-audit.json
+
+  # =============================================================================
+  # QUALITY GATE & REPORTING
+  # =============================================================================
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, security-scan]
+    if: always()
+
+    steps:
+      - name: Download test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-results/
+
+      - name: Quality gate evaluation
+        run: |
+          echo "=== QUALITY GATE EVALUATION ==="
+          echo "Backend tests status: ${{ needs.backend-tests.result }}"
+          echo "Frontend tests status: ${{ needs.frontend-tests.result }}"
+          echo "Security scan status: ${{ needs.security-scan.result }}"
+
+          # Fail if any critical job failed
+          if [[ "${{ needs.backend-tests.result }}" == "failure" ]]; then
+            echo "❌ Backend tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.frontend-tests.result }}" == "failure" ]]; then
+            echo "❌ Frontend tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
+            echo "❌ Security scan failed"
+            exit 1
+          fi
+
+          echo "✅ All quality gates passed!"
+
+      - name: Generate test summary
+        run: |
+          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ needs.backend-tests.result == 'success' && '✅ Pass' || '❌ Fail' }} | Target: ${{ env.BACKEND_COVERAGE_THRESHOLD }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.frontend-tests.result == 'success' && '✅ Pass' || '❌ Fail' }} | Target: ${{ env.FRONTEND_COVERAGE_THRESHOLD }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security | ${{ needs.security-scan.result == 'success' && '✅ Pass' || '❌ Fail' }} | Vulnerability Scan |" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # NOTIFICATION & REPORTING
+  # =============================================================================
+  notify:
+    name: Notification
+    runs-on: ubuntu-latest
+    needs: [quality-gate]
+    if: always() && github.event_name == 'pull_request'
+
+    steps:
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const conclusion = '${{ needs.quality-gate.result }}';
+            const emoji = conclusion === 'success' ? '✅' : '❌';
+            const status = conclusion === 'success' ? 'passed' : 'failed';
+
+            const body = `## ${emoji} CI Pipeline ${status}
+
+            **Quality Gate Status:** ${status}
+
+            ### Test Results
+            - Backend Tests: ${{ needs.backend-tests.result == 'success' && '✅' || '❌' }}
+            - Frontend Tests: ${{ needs.frontend-tests.result == 'success' && '✅' || '❌' }}
+            - Security Scan: ${{ needs.security-scan.result == 'success' && '✅' || '❌' }}
+
+            ### Coverage Targets
+            - Backend: ${process.env.BACKEND_COVERAGE_THRESHOLD}%
+            - Frontend: ${process.env.FRONTEND_COVERAGE_THRESHOLD}%
+
+            <details>
+            <summary>Pipeline Details</summary>
+
+            - **Workflow:** ${{ github.workflow }}
+            - **Run ID:** ${{ github.run_id }}
+            - **Commit:** ${{ github.sha }}
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body
+            });

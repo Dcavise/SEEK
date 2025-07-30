@@ -57,7 +57,61 @@ class Settings(BaseSettings):  # type: ignore[misc]
         default="redis://localhost:6379/0", description="Redis connection URL"
     )
     redis_max_connections: int = Field(
-        default=10, description="Redis connection pool size"
+        default=50, description="Redis connection pool size"
+    )
+    redis_retry_on_timeout: bool = Field(
+        default=True, description="Retry Redis operations on timeout"
+    )
+    redis_health_check_interval: int = Field(
+        default=30, description="Redis health check interval in seconds"
+    )
+    redis_socket_timeout: int = Field(
+        default=5, description="Redis socket timeout in seconds"
+    )
+    redis_socket_connect_timeout: int = Field(
+        default=5, description="Redis socket connect timeout in seconds"
+    )
+
+    # Redis Cluster settings (for production)
+    redis_cluster_nodes: list[str] = Field(
+        default=[], description="Redis cluster node URLs for production"
+    )
+    redis_cluster_enabled: bool = Field(
+        default=False, description="Enable Redis cluster mode"
+    )
+    redis_cluster_skip_full_coverage_check: bool = Field(
+        default=False, description="Skip full coverage check in cluster mode"
+    )
+
+    # Cache TTL settings for different data types
+    cache_ttl_session: int = Field(
+        default=1800, description="Session cache TTL in seconds (30 minutes)"
+    )
+    cache_ttl_compliance_short: int = Field(
+        default=300, description="Short compliance cache TTL in seconds (5 minutes)"
+    )
+    cache_ttl_compliance_long: int = Field(
+        default=3600, description="Long compliance cache TTL in seconds (1 hour)"
+    )
+    cache_ttl_foia_processing: int = Field(
+        default=86400, description="FOIA processing cache TTL in seconds (24 hours)"
+    )
+    cache_ttl_property_lookup: int = Field(
+        default=7200, description="Property lookup cache TTL in seconds (2 hours)"
+    )
+    cache_ttl_tier_classification: int = Field(
+        default=21600, description="Tier classification cache TTL in seconds (6 hours)"
+    )
+
+    # Cache warming and performance settings
+    cache_warming_enabled: bool = Field(
+        default=True, description="Enable cache warming strategies"
+    )
+    cache_warming_batch_size: int = Field(
+        default=100, description="Batch size for cache warming operations"
+    )
+    property_lookup_max_response_time_ms: int = Field(
+        default=500, description="Maximum property lookup response time in milliseconds"
     )
 
     # Authentication settings
