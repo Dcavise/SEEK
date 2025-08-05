@@ -14,6 +14,7 @@ import TeamAssignments from "./pages/team/assignments";
 import AnalyticsIndex from "./pages/analytics/index";
 import AnalyticsPipeline from "./pages/analytics/pipeline";
 import SettingsProfile from "./pages/settings/profile";
+import FOIAImportTest from "./pages/FOIAImportTest";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/analytics" element={<AnalyticsIndex />} />
           <Route path="/analytics/pipeline" element={<AnalyticsPipeline />} />
           <Route path="/settings/profile" element={<SettingsProfile />} />
+          <Route path="/foia-test" element={<FOIAImportTest />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

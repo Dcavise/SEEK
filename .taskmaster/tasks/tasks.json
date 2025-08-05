@@ -26,7 +26,7 @@
             "description": "Develop parsing functionality for CSV and Excel files using Papa Parse or similar library to extract data into structured format",
             "dependencies": [],
             "details": "Integrate Papa Parse for CSV parsing with configurable delimiters, implement Excel parsing using appropriate library, handle various encoding formats (UTF-8, Latin-1), create data structure for parsed content, add error handling for malformed files, implement streaming for large files",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -35,7 +35,7 @@
             "description": "Create dynamic UI for mapping uploaded file columns to existing database schema fields (zoned_by_right, occupancy_class, fire_sprinklers)",
             "dependencies": [],
             "details": "Build dropdown interfaces for column mapping to database fields, implement auto-detection of column matches based on headers, create preview table showing mapped data, add validation for required field mappings, implement mapping presets for common FOIA formats, allow custom field mapping persistence",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -184,7 +184,7 @@
     ],
     "metadata": {
       "created": "2025-08-05T13:45:18.555Z",
-      "updated": "2025-08-05T14:11:17.708Z",
+      "updated": "2025-08-05T16:12:53.552Z",
       "description": "Tasks for master context"
     }
   }

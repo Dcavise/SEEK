@@ -48,3 +48,24 @@ export const ACCEPTED_FILE_TYPES = {
 
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
 export const PREVIEW_ROWS_COUNT = 10;
+
+// Column Mapping Types
+export interface UploadedCSVData {
+  fileName: string;
+  headers: string[];
+  allRows: string[][];
+  totalRows: number;
+  uploadedAt: string;
+}
+
+export interface ColumnMapping {
+  sourceColumn: string;
+  targetField: string | null;
+  confidence: number;
+}
+
+export interface MappingValidation {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
