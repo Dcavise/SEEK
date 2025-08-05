@@ -113,15 +113,80 @@ class FOIAAddressMatcher:
             return pd.DataFrame()
     
     def normalize_address(self, address: str) -> str:
-        """Normalize address for consistent matching"""
+        """Enhanced address normalization for FOIA matching (Task 2.1)
+        
+        Handles the root causes of 26% match rate:
+        - Removes suite numbers (STE 200, STE 106, #7166)
+        - Standardizes directionals (E LANCASTER AVE → LANCASTER)  
+        - Normalizes street types consistently
+        - Handles business/special addresses
+        
+        Target: 26% → 80%+ match rate improvement
+        """
         if not address or pd.isna(address):
             return ""
         
         # Convert to uppercase and remove extra spaces
         normalized = str(address).upper().strip()
         
-        # Standardize common abbreviations
-        abbreviations = {
+        # ENHANCEMENT 1: Remove suite/unit numbers and business identifiers
+        # Remove suite numbers: STE 200, STE 106, SUITE 200, APT 5, UNIT B, etc.
+        suite_patterns = [
+            r'\s+STE\s+\w+',           # STE 200, STE A
+            r'\s+SUITE\s+\w+',         # SUITE 200
+            r'\s+APT\s+\w+',           # APT 5, APT A
+            r'\s+APARTMENT\s+\w+',     # APARTMENT 5
+            r'\s+UNIT\s+\w+',          # UNIT B
+            r'\s+#\s*\w+',             # # 200, #A
+            r'\s+BLDG\s+\w+',          # BLDG A
+            r'\s+BUILDING\s+\w+',      # BUILDING A
+            r'\s+FL\s+\w+',            # FL 2 (Floor)
+            r'\s+FLOOR\s+\w+',         # FLOOR 2
+        ]
+        
+        for pattern in suite_patterns:
+            normalized = re.sub(pattern, '', normalized)
+        
+        # ENHANCEMENT 2: Handle business addresses and special cases
+        # Check if this is a business address that should be skipped
+        business_patterns = [
+            r'.*PARKING GARAGE.*',      # #7166 XTO PARKING GARAGE
+            r'.*PARKING LOT.*',         # Various parking lots
+            r'.*SHOPPING CENTER.*',     # Shopping centers
+            r'.*MALL.*',               # Malls  
+            r'.*PLAZA.*',              # Plazas (if not part of street name)
+        ]
+        
+        # If it's clearly a business address, return empty (cannot be matched to street addresses)
+        for pattern in business_patterns:
+            if re.search(pattern, normalized):
+                return ""  # Business addresses cannot be reliably matched to parcel street addresses
+        
+        # ENHANCEMENT 3: Remove/standardize directionals for better matching
+        # Many FOIA addresses have directionals that parcel addresses don't
+        # Strategy: Remove directionals after street numbers and at end of addresses
+        
+        # Remove directionals after street numbers: "7445 E LANCASTER" → "7445 LANCASTER"
+        # Pattern: number + space + directional + space + street name
+        directional_after_number = r'^(\d+)\s+(N|S|E|W|NE|NW|SE|SW|NORTH|SOUTH|EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST)\s+'
+        match = re.match(directional_after_number, normalized)
+        if match:
+            street_number = match.group(1)
+            remaining_address = normalized[len(match.group(0)):]
+            normalized = f"{street_number} {remaining_address}"
+        
+        # Remove trailing directionals: "MAIN ST E" → "MAIN ST"  
+        directional_suffixes = r'\s+(N|S|E|W|NE|NW|SE|SW|NORTH|SOUTH|EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST)$'
+        normalized = re.sub(directional_suffixes, '', normalized)
+        
+        # Remove leading directionals (for addresses that start with directionals): "E LANCASTER" → "LANCASTER"
+        directional_prefixes = r'^(N|S|E|W|NE|NW|SE|SW|NORTH|SOUTH|EAST|WEST|NORTHEAST|NORTHWEST|SOUTHEAST|SOUTHWEST)\s+'
+        normalized = re.sub(directional_prefixes, '', normalized)
+        
+        # ENHANCEMENT 4: Standardize street types consistently
+        # Strategy: Normalize to most common abbreviated forms in parcel database
+        street_type_normalizations = {
+            # Normalize to abbreviated forms (what parcel DB likely uses)
             ' STREET': ' ST',
             ' AVENUE': ' AVE', 
             ' BOULEVARD': ' BLVD',
@@ -132,17 +197,39 @@ class FOIAAddressMatcher:
             ' PLACE': ' PL',
             ' CIRCLE': ' CIR',
             ' TRAIL': ' TRL',
-            ' PARKWAY': ' PKWY'
+            ' PARKWAY': ' PKWY',
+            ' HIGHWAY': ' HWY',
+            ' FREEWAY': ' FWY',
+            ' EXPRESSWAY': ' EXPY',
+            ' LOOP': ' LP',      # Texas-specific: LOOP 820 might be LP 820
+            ' FARM TO MARKET': ' FM',  # Texas FM roads
+            ' RANCH TO MARKET': ' RM', # Texas RM roads
+            ' STATE HIGHWAY': ' SH',   # Texas state highways
         }
         
-        for full, abbrev in abbreviations.items():
-            normalized = normalized.replace(full, abbrev)
+        for full_form, abbreviated in street_type_normalizations.items():
+            normalized = normalized.replace(full_form, abbreviated)
         
-        # Remove extra spaces and punctuation
+        # ENHANCEMENT 5: Remove extra punctuation and normalize spacing
+        # Remove all punctuation except spaces and alphanumeric
         normalized = re.sub(r'[^\w\s]', '', normalized)
+        
+        # Normalize multiple spaces to single space
         normalized = re.sub(r'\s+', ' ', normalized)
         
-        return normalized.strip()
+        # Final cleanup
+        normalized = normalized.strip()
+        
+        # ENHANCEMENT 6: Handle edge cases
+        # If we ended up with just a number or empty string, it's not a valid address
+        if not normalized or normalized.isdigit():
+            return ""
+        
+        # If we ended up with too few components, it's probably not a valid street address
+        if len(normalized.split()) < 2:
+            return ""  # Invalid address - need at least number + street name
+        
+        return normalized
     
     def extract_address_components(self, address: str) -> Dict[str, str]:
         """Extract street number, name, and suffix from address"""
@@ -307,6 +394,19 @@ class FOIAAddressMatcher:
             )
         
         normalized_foia = self.normalize_address(foia_address)
+        
+        # If normalization failed (empty string), no match possible
+        if not normalized_foia:
+            return MatchResult(
+                foia_record_id=record_number,
+                matched_parcel_id=None,
+                confidence_score=0,
+                match_tier='no_match',
+                match_method='tier2_normalized_address',
+                original_address=foia_address,
+                matched_address=None,
+                requires_manual_review=False
+            )
         
         # Check for exact normalized match
         if normalized_foia in self.address_cache:

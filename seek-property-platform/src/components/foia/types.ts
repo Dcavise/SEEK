@@ -69,3 +69,44 @@ export interface MappingValidation {
   errors: string[];
   warnings: string[];
 }
+
+// Data Validation Types (Task 1.4)
+export interface ValidationResult {
+  isValid: boolean;
+  field: string;
+  value: any;
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+  rowIndex?: number;
+  suggestion?: string;
+}
+
+export interface ValidationSummary {
+  totalRecords: number;
+  validRecords: number;
+  recordsWithWarnings: number;
+  recordsWithErrors: number;
+  errorRate: number;
+  warningRate: number;
+  fieldStats: Record<string, {
+    totalValues: number;
+    validValues: number;
+    emptyValues: number;
+    errorCount: number;
+    warningCount: number;
+    uniqueValues: number;
+  }>;
+  results: ValidationResult[];
+}
+
+export interface DataQualityReport {
+  mappings: Record<string, string>;
+  validationSummary: ValidationSummary;
+  qualityMetrics: Record<string, {
+    completeness: number;
+    accuracy: number;
+    consistency: number;
+    uniqueness: number;
+  }>;
+  generatedAt: string;
+}

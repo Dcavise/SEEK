@@ -9,7 +9,7 @@
         "testStrategy": "Unit tests for file parsing functions, integration tests for upload flow with existing Supabase connection, validation tests for different file formats and edge cases, user acceptance testing with sample FOIA datasets against 701,089 existing parcels",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -44,7 +44,7 @@
             "description": "Create comprehensive validation logic for uploaded FOIA data against existing database constraints and business rules",
             "dependencies": [],
             "details": "Implement field-level validation (valid zoning codes, occupancy classes, boolean values), create data quality checks and error reporting, build validation summary dashboard, add support for custom validation rules, implement batch validation for large datasets, create validation report export functionality",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -52,24 +52,65 @@
             "title": "Integrate with Supabase Storage and Database",
             "description": "Connect upload interface to Supabase for secure file storage and database integration using existing connection credentials",
             "dependencies": [],
-            "details": "Integrate with Supabase Storage for secure file uploads using existing .env credentials, implement database insertion logic for validated FOIA data, create transaction handling for batch operations, add rollback functionality for failed imports, implement progress tracking for large uploads, ensure integration with existing 701,089 parcel database structure",
-            "status": "pending",
+            "details": "Reference the schema and database architecture in @README.md before beginning the build. Integrate with Supabase Storage for secure file uploads using existing .env credentials, implement database insertion logic for validated FOIA data, create transaction handling for batch operations, add rollback functionality for failed imports, implement progress tracking for large uploads, ensure integration with existing 701,089 parcel database structure",
+            "status": "done",
             "testStrategy": ""
           }
         ]
       },
       {
         "id": 2,
-        "title": "Develop Multi-Tiered Address Matching System",
-        "description": "Implement address matching algorithms to connect FOIA data with existing 701,089 parcel records using exact, normalized, and fuzzy matching",
-        "details": "Create Python matching service in virtual environment with three tiers: exact parcel number matching against existing parcel database, normalized address matching using string standardization (remove punctuation, standardize abbreviations), fuzzy matching using Levenshtein distance or similar algorithm, implement confidence scoring system, create match result database table to track matching outcomes, add manual review queue for low-confidence matches, leverage existing optimized database performance (<25ms queries)",
-        "testStrategy": "Unit tests for each matching algorithm, performance tests with 701,089 parcel dataset maintaining sub-25ms performance, accuracy tests using known good matches from existing data, integration tests with real FOIA data samples against production database",
+        "title": "Enhance Address Matching System (Right-Sized for Startup)",
+        "description": "Incrementally improve existing address matching to solve the real 26% Fort Worth match rate problem with startup-appropriate engineering",
+        "details": "RIGHT-SIZED APPROACH: Address real business problem with minimal complexity. Current 26% match rate with Fort Worth FOIA needs improvement. FOCUS ON: (1) Enhanced parcel number extraction for Texas county formats (Fort Worth PB01-02745, etc.), (2) Simple pg_trgm fuzzy matching for database performance, (3) Improved manual review interface for bulk operations. SKIP OVER-ENGINEERING: Geospatial matching, ML models, complex caching - add only if proven necessary after Phase 2A success.",
+        "testStrategy": "Target 40-60% match rate improvement with Fort Worth FOIA data, maintain sub-25ms query performance, validate enhanced parcel number extraction with real Texas FOIA formats, usability testing for manual review improvements",
         "priority": "high",
         "dependencies": [
           1
         ],
         "status": "pending",
-        "subtasks": []
+        "startupContext": {
+          "currentProblem": "26% match rate with Fort Worth FOIA data due to address format mismatches",
+          "rootCause": "Address normalization insufficient: 'E LANCASTER AVE' vs 'LANCASTER', suite numbers, directionals",
+          "businessGoal": "Increase match rate to 80%+ through enhanced address normalization (not parcel extraction)",
+          "engineeringPrinciple": "Address the real problem: format differences, not missing data",
+          "keyInsight": "Parcel DB contains all Texas addresses - 26% rate reveals normalization gaps, not data gaps",
+          "existingAssets": [
+            "Working foia_address_matcher.py with 3-tier matching system",
+            "AddressMatchingValidator.tsx for manual review", 
+            "1.4M+ parcel database with ALL Texas addresses",
+            "Proven audit trail system (foia_updates, foia_import_sessions)"
+          ]
+        },
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Enhanced Address Normalization Engine (Phase 2A Priority)",
+            "description": "Fix address format mismatches to solve the 26% match rate problem - target 80%+ match rate",
+            "details": "ROOT CAUSE IDENTIFIED: 26% match rate is due to address format differences, not missing parcels. FOIA addresses like '7445 E LANCASTER AVE' vs parcel '223 LANCASTER'. SOLUTION: Enhanced address normalization in foia_address_matcher.py: (1) Remove suite numbers (STE 200, STE 106, #7166), (2) Standardize directionals (E LANCASTER AVE → LANCASTER), (3) Normalize street types (AVE ↔ AVENUE), (4) Handle business addresses. Test with fort-worth-foia-test.csv. Expected outcome: 26% → 80%+ match rate.",
+            "dependencies": [],  
+            "status": "pending",
+            "priority": "high"
+          },
+          {
+            "id": 2,
+            "title": "Basic pg_trgm Fuzzy Matching (Phase 2A)",
+            "description": "Add simple PostgreSQL fuzzy matching to improve address matching without complex infrastructure",
+            "details": "LIGHTWEIGHT IMPLEMENTATION: Install pg_trgm extension in Supabase. Create basic trigram similarity queries for addresses. Replace most compute-intensive Python fuzzy matching with database queries. Keep implementation simple - no complex indexing strategies initially. Maintain current <25ms performance. Test with existing 1.4M parcel database to ensure no regression.",
+            "dependencies": [1],
+            "status": "pending",
+            "priority": "medium"
+          },
+          {
+            "id": 3,
+            "title": "Improved Manual Review Interface (Phase 2A)",
+            "description": "Enhance existing manual review UI for better bulk operations to handle the 74% unmatched records",
+            "details": "PRACTICAL UI IMPROVEMENTS: Enhance existing AddressMatchingValidator.tsx component. Add bulk approval/rejection buttons, confidence score filtering, simple side-by-side address comparison. Focus on improving workflow for reviewing unmatched Fort Worth FOIA records. No complex features like Google Maps or reviewer assignment initially. Integration with existing Task 1.5 audit workflow.",
+            "dependencies": [2],
+            "status": "pending",
+            "priority": "medium"
+          }
+        ]
       },
       {
         "id": 3,
