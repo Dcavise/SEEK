@@ -4,29 +4,17 @@ import { Header } from '@/components/shared/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, FileSpreadsheet, Database, MapPin } from 'lucide-react';
+import { FileUpload } from '@/components/foia';
 
 const ImportIndex = () => {
   const navigate = useNavigate();
-  const [dragActive, setDragActive] = useState(false);
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const handleFilesAccepted = (files: File[]) => {
     // Store file info and navigate to mapping
-    // TODO: Process actual file upload
-    sessionStorage.setItem('uploadedFile', 'sample.csv');
-    navigate('/import/mapping');
+    if (files.length > 0) {
+      sessionStorage.setItem('uploadedFile', files[0].name);
+      navigate('/import/mapping');
+    }
   };
 
   return (
@@ -41,41 +29,52 @@ const ImportIndex = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* File Upload */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* FOIA File Upload */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5" />
-                CSV Upload
+                FOIA Data Upload
               </CardTitle>
               <CardDescription>
-                Upload a CSV file with property data
+                Upload CSV or Excel files containing FOIA data for property enhancement
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive ? 'border-primary bg-accent' : 'border-border hover:border-primary'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-foreground font-medium mb-2">Drop your CSV file here</p>
-                <p className="text-sm text-muted-foreground mb-4">or click to browse</p>
-                <Button onClick={() => {
-                  // TODO: Handle file selection
-                  sessionStorage.setItem('uploadedFile', 'sample.csv');
-                  navigate('/import/mapping');
-                }}>
-                  Choose File
-                </Button>
-              </div>
+              <FileUpload 
+                onFilesAccepted={handleFilesAccepted}
+                maxFiles={5}
+                showPreview={true}
+              />
             </CardContent>
           </Card>
+
+          {/* Database Import */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Bulk Property Import
+                </CardTitle>
+                <CardDescription>
+                  Upload CSV files with property data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">Legacy CSV import</p>
+                  <Button variant="outline" onClick={() => {
+                    sessionStorage.setItem('uploadedFile', 'legacy.csv');
+                    navigate('/import/mapping');
+                  }}>
+                    Choose File
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
           {/* Database Import */}
           <Card>
@@ -103,6 +102,7 @@ const ImportIndex = () => {
               </Button>
             </CardContent>
           </Card>
+          </div>
         </div>
 
         {/* Import History */}

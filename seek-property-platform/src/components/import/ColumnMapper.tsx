@@ -39,6 +39,7 @@ interface ColumnMapperProps {
   csvColumns: CSVColumn[];
   onMappingComplete: (mappings: ColumnMapping[]) => void;
   onBack: () => void;
+  fileName?: string;
 }
 
 const PRIMER_FIELDS: PrimerField[] = [
@@ -87,7 +88,7 @@ const MAPPING_TEMPLATES = {
   }
 };
 
-export function ColumnMapper({ csvColumns, onMappingComplete, onBack }: ColumnMapperProps) {
+export function ColumnMapper({ csvColumns, onMappingComplete, onBack, fileName }: ColumnMapperProps) {
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
@@ -207,19 +208,29 @@ export function ColumnMapper({ csvColumns, onMappingComplete, onBack }: ColumnMa
   const validation = validateMappings();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
+    <div className="bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Map Your Columns</h1>
           <p className="text-muted-foreground">
             Match your CSV columns to Primer fields to ensure accurate data import
           </p>
-          <div className="flex items-center gap-2 mt-4">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Detected {csvColumns.length} columns in your CSV file
-            </span>
+          <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Detected {csvColumns.length} columns in your CSV file
+              </span>
+            </div>
+            {fileName && (
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-1 bg-muted-foreground rounded-full" />
+                <span className="text-sm font-medium text-foreground">
+                  {fileName}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -255,7 +266,7 @@ export function ColumnMapper({ csvColumns, onMappingComplete, onBack }: ColumnMa
             <CardHeader>
               <CardTitle className="text-lg">Your CSV Columns</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-96 overflow-y-auto">
               {csvColumns.map((column, index) => (
                 <div key={index} className="border rounded-lg p-4">
                   <div className="font-medium text-foreground mb-2">{column.name}</div>
@@ -284,7 +295,7 @@ export function ColumnMapper({ csvColumns, onMappingComplete, onBack }: ColumnMa
             <CardHeader>
               <CardTitle className="text-lg">Primer Fields</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-96 overflow-y-auto">
               {/* Required Fields */}
               <div>
                 <h3 className="font-medium text-foreground mb-3">Required Fields *</h3>

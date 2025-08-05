@@ -2,9 +2,10 @@
 
 ## Project Context
 **Date Created**: 2025-08-05
+**Last Updated**: 2025-08-05
 **Project Type**: Internal real estate investment tool
 **Users**: 5-15 team members searching for Texas properties with specific FOIA characteristics
-**MVP Timeline**: 10 working days for data foundation
+**Current Phase**: Phase 2 - FOIA Integration (Task 1.1 Complete, Task 1.2 Next)
 
 ## Technical Architecture
 
@@ -252,15 +253,52 @@ npm run dev
 npm run build
 ```
 
+## FOIA Integration Implementation (Phase 2)
+
+### Completed Components (Task 1.1)
+1. **FileUpload Component** (`src/components/foia/FileUpload.tsx`)
+   - React drag-and-drop interface using react-dropzone
+   - File validation: CSV/Excel only, 50MB max size
+   - Real-time parsing and preview of first 10 rows
+   - Integration with sessionStorage for data persistence
+
+2. **FilePreview Component** (`src/components/foia/FilePreview.tsx`)
+   - Table display with header detection
+   - Scrollable preview with file statistics
+   - Compatible with existing UI system (shadcn/ui)
+
+3. **Data Flow Integration**
+   - Upload → Preview → Column Mapping → Processing
+   - Real FOIA data tested: building permits with occupancy classifications
+   - Session persistence between pages with filename display
+
+### Next Implementation (Task 1.2 - Address Matching)
+```python
+# Multi-tier matching algorithm
+def match_foia_to_parcels(foia_records, existing_parcels):
+    # Tier 1: Exact parcel number match (100% confidence)
+    # Tier 2: Normalized address match (95% confidence) 
+    # Tier 3: Fuzzy address matching (80-90% confidence)
+    # Manual review queue for <80% confidence
+```
+
+### FOIA Database Schema Extensions
+- Existing columns ready: `zoned_by_right`, `occupancy_class`, `fire_sprinklers`
+- Match tracking table: `foia_matches` (confidence, tier, manual_review)
+- Audit trail: `foia_import_logs` (timestamp, records_processed, success_rate)
+
 ## Known Issues & Solutions
 1. **CSV Encoding**: Some county files may have encoding issues
    - Solution: Use pandas with encoding='latin1' or 'cp1252'
 
 2. **Address Parsing**: Texas addresses vary widely
-   - Solution: usaddress library + custom rules
+   - Solution: usaddress library + custom rules + fuzzy matching
 
 3. **Large Files**: Some counties have 100k+ records
    - Solution: Batch processing with progress tracking
+
+4. **FOIA Data Variety**: Different formats from various agencies
+   - Solution: Column mapping interface with templates and auto-detection
 
 ## Future Enhancements
 1. Real-time collaboration features

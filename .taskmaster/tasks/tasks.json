@@ -1,0 +1,191 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Implement FOIA Data Upload Interface",
+        "description": "Create a web interface for uploading CSV/Excel files containing FOIA data with column mapping capabilities to populate existing database schema",
+        "details": "Build React component using react-dropzone for file upload (leverage existing React frontend infrastructure), implement CSV/Excel parsing using Papa Parse or similar library, create dynamic column mapping interface where users can map uploaded columns to existing database fields (zoned_by_right, occupancy_class, fire_sprinklers), add file validation and preview functionality, integrate with Supabase Storage for secure file handling (use existing Supabase connection from .env)",
+        "testStrategy": "Unit tests for file parsing functions, integration tests for upload flow with existing Supabase connection, validation tests for different file formats and edge cases, user acceptance testing with sample FOIA datasets against 701,089 existing parcels",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create File Upload UI Component",
+            "description": "Build React component with drag-and-drop file upload interface using react-dropzone, supporting CSV and Excel files with progress indicators and file validation",
+            "dependencies": [],
+            "details": "Implement drag-and-drop zone using react-dropzone library, add file type validation for CSV/Excel formats, create upload progress indicators, implement file size limits and error handling, add file preview functionality showing first few rows, integrate with existing React frontend styling",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement File Parsing Logic",
+            "description": "Develop parsing functionality for CSV and Excel files using Papa Parse or similar library to extract data into structured format",
+            "dependencies": [],
+            "details": "Integrate Papa Parse for CSV parsing with configurable delimiters, implement Excel parsing using appropriate library, handle various encoding formats (UTF-8, Latin-1), create data structure for parsed content, add error handling for malformed files, implement streaming for large files",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build Column Mapping Interface",
+            "description": "Create dynamic UI for mapping uploaded file columns to existing database schema fields (zoned_by_right, occupancy_class, fire_sprinklers)",
+            "dependencies": [],
+            "details": "Build dropdown interfaces for column mapping to database fields, implement auto-detection of column matches based on headers, create preview table showing mapped data, add validation for required field mappings, implement mapping presets for common FOIA formats, allow custom field mapping persistence",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement Data Validation System",
+            "description": "Create comprehensive validation logic for uploaded FOIA data against existing database constraints and business rules",
+            "dependencies": [],
+            "details": "Implement field-level validation (valid zoning codes, occupancy classes, boolean values), create data quality checks and error reporting, build validation summary dashboard, add support for custom validation rules, implement batch validation for large datasets, create validation report export functionality",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Integrate with Supabase Storage and Database",
+            "description": "Connect upload interface to Supabase for secure file storage and database integration using existing connection credentials",
+            "dependencies": [],
+            "details": "Integrate with Supabase Storage for secure file uploads using existing .env credentials, implement database insertion logic for validated FOIA data, create transaction handling for batch operations, add rollback functionality for failed imports, implement progress tracking for large uploads, ensure integration with existing 701,089 parcel database structure",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Develop Multi-Tiered Address Matching System",
+        "description": "Implement address matching algorithms to connect FOIA data with existing 701,089 parcel records using exact, normalized, and fuzzy matching",
+        "details": "Create Python matching service in virtual environment with three tiers: exact parcel number matching against existing parcel database, normalized address matching using string standardization (remove punctuation, standardize abbreviations), fuzzy matching using Levenshtein distance or similar algorithm, implement confidence scoring system, create match result database table to track matching outcomes, add manual review queue for low-confidence matches, leverage existing optimized database performance (<25ms queries)",
+        "testStrategy": "Unit tests for each matching algorithm, performance tests with 701,089 parcel dataset maintaining sub-25ms performance, accuracy tests using known good matches from existing data, integration tests with real FOIA data samples against production database",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Create FOIA Property Filtering System",
+        "description": "Add advanced filtering capabilities to existing property search based on FOIA data fields (zoning, occupancy class, fire sprinklers)",
+        "details": "Extend existing search API to include FOIA filters leveraging current sub-25ms performance, verify existing database indexes on zoned_by_right, occupancy_class, and fire_sprinklers columns (add if missing), create React filter components with dropdowns and checkboxes using existing React frontend architecture, implement filter state management using React Query, add filter persistence in URL parameters for shareable searches, maintain existing sub-25ms query performance standards",
+        "testStrategy": "Performance tests to ensure filtering maintains existing <25ms speed requirements, functional tests for all filter combinations against 701,089 parcel dataset, UI tests for filter component interactions with existing search interface, database query optimization validation maintaining current performance benchmarks",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Build Data Validation and Conflict Resolution Tools",
+        "description": "Implement tools for validating FOIA data quality and resolving matching conflicts with existing parcel database",
+        "details": "Create validation rules for FOIA data fields using existing database schema constraints (valid zoning codes, occupancy classes, boolean fire sprinkler values), build conflict resolution interface for reviewing low-confidence matches against existing 701,089 parcels, implement data quality metrics dashboard, add bulk approval/rejection tools for match results, create audit trail for all data changes, implement rollback functionality for import operations, use existing Python virtual environment and dependencies",
+        "testStrategy": "Validation rule tests with known good/bad data from existing parcel database, conflict resolution workflow testing with real parcel data, audit trail verification, rollback functionality testing against production-like dataset, data integrity checks maintaining existing database performance",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Enhance Property Search Interface with FOIA Integration",
+        "description": "Update the existing property search interface to display and filter by FOIA data fields integrated with current 701,089 parcel database",
+        "details": "Modify existing property search results table to include FOIA columns (zoning, occupancy, sprinklers), add visual indicators for properties with/without FOIA data, implement advanced search form with FOIA-specific filters using existing React components, add search result sorting by FOIA criteria, create property detail modal with comprehensive FOIA information display leveraging existing UI patterns, maintain responsive design for mobile use consistent with current interface",
+        "testStrategy": "UI component tests for new search features integrated with existing interface, integration tests for search API changes maintaining current performance, mobile responsiveness testing consistent with existing design, accessibility compliance testing, user experience testing with real estate team using existing 701,089 parcel dataset",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Implement Interactive Map with FOIA Visualization",
+        "description": "Enhance the existing Mapbox integration to display properties with FOIA data visualization and clustering for 701,089 parcels",
+        "details": "Extend existing Mapbox GL integration to show FOIA data in property markers, implement color-coded markers based on zoning/occupancy status, add property clustering with FOIA data aggregation optimized for large dataset performance, create map popup with detailed property and FOIA information, implement map-based filtering controls, add legend for FOIA data visualization, optimize map performance for 701,089 parcel dataset maintaining existing performance standards",
+        "testStrategy": "Map rendering performance tests with full 701,089 parcel dataset, marker clustering validation at scale, popup functionality testing, mobile map interaction testing consistent with existing interface, large dataset rendering tests maintaining current performance benchmarks",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Create User Authentication and Role Management",
+        "description": "Implement user authentication system with role-based access control for team collaboration features using existing Supabase infrastructure",
+        "details": "Set up Supabase Auth with email/password authentication using existing Supabase connection from .env, create user roles (admin, team_lead, analyst), implement Row Level Security policies for data access leveraging existing RLS-enabled database, build login/registration components using existing React frontend architecture, create user management interface for admins, implement role-based UI component rendering, add password reset functionality, set up user session management",
+        "testStrategy": "Authentication flow testing with existing Supabase infrastructure, role permission validation against existing RLS policies, RLS policy testing with current database setup, security testing for unauthorized access attempts, session management testing integrated with existing system",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Build Property Assignment and Progress Tracking System",
+        "description": "Create team collaboration features for assigning properties from existing 701,089 parcel database to users and tracking research progress",
+        "details": "Create user_assignments table with database triggers in existing PostgreSQL schema, build property assignment interface with user selection dropdown using existing React components, implement assignment status tracking (assigned, in_progress, completed), create team dashboard showing workload distribution across existing parcel database, add assignment history and audit logging, implement bulk assignment operations optimized for large dataset, create notification system for assignment updates",
+        "testStrategy": "Assignment workflow testing with existing parcel database, database trigger validation maintaining current performance, team dashboard functionality testing with 701,089 parcel scale, bulk operation testing optimized for existing database performance, notification delivery testing",
+        "priority": "medium",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Develop Analytics Dashboard for Property and Team Insights",
+        "description": "Create comprehensive analytics dashboard showing property distribution, FOIA data coverage, and team performance metrics for existing 701,089 parcel database",
+        "details": "Create materialized views for analytics queries optimized for existing database performance, build charts using Chart.js or similar library showing property distribution by county/city from existing data, FOIA data coverage percentages across 701,089 parcels, team productivity metrics, implement real-time dashboard updates using Supabase subscriptions with existing connection, add customizable date ranges and filters, create export functionality for reports, optimize analytics queries maintaining sub-25ms performance standards",
+        "testStrategy": "Analytics accuracy validation against existing 701,089 parcel dataset, dashboard performance testing maintaining current benchmarks, real-time update testing with existing Supabase infrastructure, export functionality testing with large datasets, chart rendering tests across browsers consistent with existing interface",
+        "priority": "low",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Comprehensive Testing and Documentation",
+        "description": "Create full test coverage and update documentation for the FOIA integration features integrated with existing system architecture",
+        "details": "Write comprehensive unit tests for all new components and functions using existing testing framework, create integration tests for FOIA data workflows with existing 701,089 parcel database, implement end-to-end tests using Playwright or similar maintaining existing performance standards, update PROJECT_MEMORY.md with new database schema changes preserving existing documentation, create user documentation for FOIA features, write API documentation for new endpoints, set up automated testing in CI/CD pipeline, create performance benchmarking tests maintaining sub-25ms query requirements",
+        "testStrategy": "Achieve 90%+ test coverage including integration with existing codebase, validate all user workflows through E2E tests with full parcel database, performance regression testing ensuring sub-25ms query maintenance, documentation accuracy review including existing PROJECT_MEMORY.md updates, user acceptance testing with real estate team using production-scale 701,089 parcel dataset",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-05T13:45:18.555Z",
+      "updated": "2025-08-05T14:11:17.708Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
