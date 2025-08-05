@@ -123,7 +123,58 @@
           2
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Database Schema Validation & Index Optimization",
+            "description": "Verify existing database indexes on FOIA fields and optimize for filtering performance",
+            "details": "Check existing indexes on zoned_by_right, occupancy_class, fire_sprinklers columns in 701,089 parcel database. Create missing indexes if needed. Test query performance with realistic filter combinations. Ensure sub-25ms query times maintained. Document index strategy for production deployment.",
+            "dependencies": [],
+            "status": "done",
+            "priority": "high",
+            "testStrategy": "Query performance benchmarks, EXPLAIN ANALYZE on filter combinations, load testing with 701k records"
+          },
+          {
+            "id": 2,
+            "title": "Extend Search API with FOIA Filters",
+            "description": "Add FOIA filter parameters to existing search endpoints while maintaining performance",
+            "details": "Extend existing search API endpoints to accept fire_sprinklers, zoned_by_right, occupancy_class filter parameters. Implement efficient WHERE clause generation. Add filter validation and sanitization. Maintain backward compatibility with existing search functionality. Test with existing Supabase client integration.",
+            "dependencies": [1],
+            "status": "pending",
+            "priority": "high",
+            "testStrategy": "API endpoint testing, parameter validation, performance regression testing, backward compatibility verification"
+          },
+          {
+            "id": 3,
+            "title": "React Filter Components",
+            "description": "Create reusable React components for FOIA property filtering with modern UI patterns",
+            "details": "Build FilterPanel component with dropdowns for occupancy_class, checkboxes for fire_sprinklers, radio buttons for zoned_by_right. Use existing shadcn/ui components for consistency. Implement real-time search preview. Add filter reset and clear functionality. Ensure mobile responsive design.",
+            "dependencies": [2],
+            "status": "pending",
+            "priority": "high",
+            "testStrategy": "Component unit tests, visual regression testing, mobile responsiveness, accessibility compliance"
+          },
+          {
+            "id": 4,
+            "title": "Filter State Management & URL Persistence",
+            "description": "Implement robust state management for filters with URL synchronization for shareable searches",
+            "details": "Integrate React Query for filter state management. Implement URL parameter serialization/deserialization for all filter combinations. Add browser history support for filter navigation. Create shareable filter URLs. Handle edge cases like invalid filter combinations gracefully.",
+            "dependencies": [3],
+            "status": "pending",
+            "priority": "medium",
+            "testStrategy": "State management testing, URL parameter validation, browser history testing, edge case handling"
+          },
+          {
+            "id": 5,
+            "title": "Integration with Existing Search Interface",
+            "description": "Seamlessly integrate FOIA filters with the current property search interface",
+            "details": "Integrate FilterPanel with existing search results table. Update search results display to show FOIA data columns. Add filter indicators and active filter badges. Implement filter count display. Ensure smooth UX transitions between filtered and unfiltered states.",
+            "dependencies": [4],
+            "status": "pending",
+            "priority": "high",
+            "testStrategy": "Integration testing with existing search, UX flow testing, visual consistency validation"
+          }
+        ]
       },
       {
         "id": 4,

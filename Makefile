@@ -27,14 +27,14 @@ install: ## Install all dependencies (backend + frontend)
 
 setup-db: ## Set up database schema and indexes
 	@echo "Setting up database schema..."
-	@. venv/bin/activate && python check_database_schema.py
+	@. venv/bin/activate && python scripts/database/check_database_schema.py
 	@echo "✅ Database schema ready"
 
 # Development
 dev: check-env ## Start development servers (backend monitoring + frontend)
 	@echo "Starting development environment..."
 	@trap 'kill %1; kill %2' SIGINT; \
-	. venv/bin/activate && python startup_monitoring.py & \
+	. venv/bin/activate && python scripts/utilities/startup_monitoring.py & \
 	cd seek-property-platform && npm run dev & \
 	wait
 
@@ -42,7 +42,7 @@ dev-frontend: ## Start only frontend development server
 	@cd seek-property-platform && npm run dev
 
 dev-backend: check-env ## Start only backend monitoring
-	@. venv/bin/activate && python startup_monitoring.py
+	@. venv/bin/activate && python scripts/utilities/startup_monitoring.py
 
 # Building
 build: ## Build frontend for production
@@ -60,21 +60,21 @@ test: ## Run tests and linting
 
 health: check-env ## Run comprehensive health checks
 	@echo "Running health checks..."
-	@. venv/bin/activate && python monitor_performance.py
+	@. venv/bin/activate && python scripts/utilities/monitor_performance.py
 	@echo "✅ Health check complete"
 
 # Data Operations
 import-data: check-env ## Import Texas county data
 	@echo "Starting data import..."
-	@. venv/bin/activate && python import_texas_counties.py
+	@. venv/bin/activate && python scripts/import/import_texas_counties.py
 	@echo "✅ Data import complete"
 
 import-single: check-env ## Import single county (usage: make import-single COUNTY=bexar)
 	@if [ -z "$(COUNTY)" ]; then echo "Usage: make import-single COUNTY=bexar"; exit 1; fi
-	@. venv/bin/activate && python import_single_county.py $(COUNTY)
+	@. venv/bin/activate && python scripts/import/import_single_county.py $(COUNTY)
 
 analyze: check-env ## Run database performance analysis
-	@. venv/bin/activate && python test_performance.py
+	@. venv/bin/activate && python tests/integration/test_performance.py
 
 # Utilities
 clean: ## Clean build artifacts and cache
@@ -109,7 +109,7 @@ deploy-prep: build test ## Prepare for deployment
 
 # Development Quality of Life
 logs: ## Show recent application logs
-	@if [ -f performance_log.json ]; then tail -20 performance_log.json; fi
+	@if [ -f temp/performance_log.json ]; then tail -20 temp/performance_log.json; fi
 	@if [ -d data/NormalizeLogs ]; then ls -la data/NormalizeLogs/ | tail -5; fi
 
 quick-start: install setup-db ## Complete setup for new developers
@@ -128,4 +128,4 @@ backup-db: ## Create database backup
 
 # Monitoring
 watch-performance: ## Watch performance metrics in real-time
-	@. venv/bin/activate && python monitor_performance.py --watch
+	@. venv/bin/activate && python scripts/utilities/monitor_performance.py --watch

@@ -1,0 +1,6 @@
+Record Number,Property Address,Building Use,Occupancy Classification,Fire Sprinklers
+PB01-12345,123 MAIN ST,Office,B,TRUE
+PB01-67890,456 ELM AVE,Retail,M,FALSE
+PB01-11111,789 OAK BLVD STE 200,Mixed Use,M,TRUE
+PB01-22222,321 PINE DR,Industrial,F-1,FALSE
+PB01-33333,654 MAPLE LN,Educational,E,TRUE

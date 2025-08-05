@@ -15,6 +15,8 @@ import AnalyticsIndex from "./pages/analytics/index";
 import AnalyticsPipeline from "./pages/analytics/pipeline";
 import SettingsProfile from "./pages/settings/profile";
 import FOIAImportTest from "./pages/FOIAImportTest";
+import { FOIAEnhancedReviewTest } from "./pages/FOIAEnhancedReviewTest";
+import DebugCSVUpload from "./pages/DebugCSVUpload";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,8 @@ const App = () => (
           <Route path="/analytics/pipeline" element={<AnalyticsPipeline />} />
           <Route path="/settings/profile" element={<SettingsProfile />} />
           <Route path="/foia-test" element={<FOIAImportTest />} />
+          <Route path="/foia-enhanced-review-test" element={<FOIAEnhancedReviewTest />} />
+          <Route path="/debug-csv-upload" element={<DebugCSVUpload />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
