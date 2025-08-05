@@ -113,6 +113,8 @@ SEEK/
 └── 📋 Documentation
     ├── README.md               # This file (main documentation)
     ├── PROJECT_MEMORY.md       # Technical specifications
+    ├── CLAUDE.md               # Claude Code session memory
+    ├── .clauderc               # Claude Code configuration
     └── docs/archive/           # Historical documentation
 ```
 

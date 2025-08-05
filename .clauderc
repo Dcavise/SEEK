@@ -1,0 +1,39 @@
+# Claude Code Configuration for SEEK Property Platform
+# This file ensures consistent session initialization
+
+# Essential files to read for project context
+session_files:
+  - README.md
+  - PROJECT_MEMORY.md
+  - CLAUDE.md
+  - Makefile
+  - requirements.txt
+  - seek-property-platform/package.json
+
+# Project-specific reminders
+project_type: "Texas Property Search Platform"
+current_phase: "Phase 1 Complete - Database Foundation"
+database_status: "701,089 parcels, optimized performance"
+key_metrics: 
+  - "Sub-25ms search queries"
+  - "4,477 records/sec import speed"
+  - "923 cities across Texas counties"
+
+# Important commands to remember
+essential_commands:
+  - "make dev - Start development environment"
+  - "make health - Check system status"
+  - "source venv/bin/activate - Python environment"
+  - "make help - Show all commands"
+
+# Security reminders
+security_notes:
+  - "Use .env for Supabase credentials"
+  - "Service key for backend, anon key for frontend"
+  - "Never commit sensitive credentials"
+
+# Next phase priorities
+next_steps:
+  - "FOIA data integration"
+  - "Team collaboration features" 
+  - "Additional Texas county imports"
