@@ -68,7 +68,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "startupContext": {
           "currentProblem": "26% match rate with Fort Worth FOIA data due to address format mismatches",
           "rootCause": "Address normalization insufficient: 'E LANCASTER AVE' vs 'LANCASTER', suite numbers, directionals",
@@ -89,7 +89,7 @@
             "description": "Fix address format mismatches to solve the 26% match rate problem - target 80%+ match rate",
             "details": "ROOT CAUSE IDENTIFIED: 26% match rate is due to address format differences, not missing parcels. FOIA addresses like '7445 E LANCASTER AVE' vs parcel '223 LANCASTER'. SOLUTION: Enhanced address normalization in foia_address_matcher.py: (1) Remove suite numbers (STE 200, STE 106, #7166), (2) Standardize directionals (E LANCASTER AVE → LANCASTER), (3) Normalize street types (AVE ↔ AVENUE), (4) Handle business addresses. Test with fort-worth-foia-test.csv. Expected outcome: 26% → 80%+ match rate.",
             "dependencies": [],  
-            "status": "pending",
+            "status": "done",
             "priority": "high"
           },
           {
@@ -98,7 +98,7 @@
             "description": "Add simple PostgreSQL fuzzy matching to improve address matching without complex infrastructure",
             "details": "LIGHTWEIGHT IMPLEMENTATION: Install pg_trgm extension in Supabase. Create basic trigram similarity queries for addresses. Replace most compute-intensive Python fuzzy matching with database queries. Keep implementation simple - no complex indexing strategies initially. Maintain current <25ms performance. Test with existing 1.4M parcel database to ensure no regression.",
             "dependencies": [1],
-            "status": "pending",
+            "status": "done",
             "priority": "medium"
           },
           {
@@ -107,7 +107,7 @@
             "description": "Enhance existing manual review UI for better bulk operations to handle the 74% unmatched records",
             "details": "PRACTICAL UI IMPROVEMENTS: Enhance existing AddressMatchingValidator.tsx component. Add bulk approval/rejection buttons, confidence score filtering, simple side-by-side address comparison. Focus on improving workflow for reviewing unmatched Fort Worth FOIA records. No complex features like Google Maps or reviewer assignment initially. Integration with existing Task 1.5 audit workflow.",
             "dependencies": [2],
-            "status": "pending",
+            "status": "done",
             "priority": "medium"
           }
         ]

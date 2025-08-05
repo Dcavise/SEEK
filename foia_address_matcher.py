@@ -434,8 +434,8 @@ class FOIAAddressMatcher:
             requires_manual_review=False
         )
     
-    def tier3_fuzzy_address_match(self, foia_record: Dict) -> MatchResult:
-        """Tier 3: Precise address matching (same street number + similar street name)"""
+    def tier3_database_fuzzy_match(self, foia_record: Dict) -> MatchResult:
+        """Tier 3: Database-side fuzzy matching using ILIKE + Python similarity (Task 2.2)"""
         foia_address = foia_record.get('Property Address', '') or foia_record.get('Property_Address', '')
         record_number = foia_record.get('Record Number', '') or foia_record.get('Record_Number', '')
         
@@ -445,7 +445,7 @@ class FOIAAddressMatcher:
                 matched_parcel_id=None,
                 confidence_score=0,
                 match_tier='no_match',
-                match_method='tier3_precise_address',
+                match_method='tier3_database_fuzzy',
                 original_address=foia_address,
                 matched_address=None,
                 requires_manual_review=False
@@ -461,48 +461,102 @@ class FOIAAddressMatcher:
                 matched_parcel_id=None,
                 confidence_score=0,
                 match_tier='no_match',
-                match_method='tier3_precise_address',
+                match_method='tier3_database_fuzzy',
                 original_address=foia_address,
                 matched_address=None,
                 requires_manual_review=True
             )
         
-        # Check each parcel address for precise match
-        best_match = None
-        best_confidence = 0
-        
-        for normalized_parcel_addr, parcel_info in self.address_cache.items():
-            if self.addresses_match_precisely(foia_address, parcel_info['address']):
-                # Calculate confidence based on street name similarity
-                parcel_components = self.extract_address_components(parcel_info['address'])
-                street_similarity = fuzz.ratio(foia_components["street"], parcel_components["street"])
+        # ENHANCEMENT: Database-side fuzzy matching using ILIKE filtering
+        try:
+            # Step 1: Use database ILIKE to filter candidates with same street number
+            street_number = foia_components["number"]
+            street_name = foia_components["street"]
+            
+            # Create ILIKE patterns for database filtering
+            patterns_to_try = []
+            
+            if street_name:
+                # Try different combinations of street number + street name parts
+                street_words = street_name.split()
                 
-                # High confidence for precise matches (95-100%)
-                confidence = min(100.0, max(95.0, street_similarity))
+                # Pattern 1: Street number + first word of street
+                if street_words:
+                    patterns_to_try.append(f"{street_number} {street_words[0]}%")
                 
-                if confidence > best_confidence:
-                    best_confidence = confidence
-                    best_match = parcel_info
+                # Pattern 2: Street number + full street name
+                patterns_to_try.append(f"{street_number} {street_name}%")
+                
+                # Pattern 3: Just street number (for cases like "223 LANCASTER")
+                patterns_to_try.append(f"{street_number} %")
+            
+            best_match = None
+            best_confidence = 0
+            
+            # Try each pattern and score results with Python similarity
+            for pattern in patterns_to_try:
+                try:
+                    # Use database ILIKE for fast filtering
+                    result = self.supabase.table('parcels').select('id, address').ilike('address', pattern).limit(20).execute()
+                    
+                    if result.data:
+                        logger.debug(f"Database fuzzy search found {len(result.data)} candidates for pattern '{pattern}'")
+                        
+                        # Score each candidate with Python similarity
+                        for candidate in result.data:
+                            candidate_address = candidate['address']
+                            candidate_components = self.extract_address_components(candidate_address)
+                            
+                            # CRITICAL: Only consider candidates with same street number
+                            if candidate_components["number"] != street_number:
+                                continue
+                                
+                            # Calculate similarity score
+                            normalized_foia = self.normalize_address(foia_address)
+                            normalized_candidate = self.normalize_address(candidate_address)
+                            
+                            # Use fuzzy string matching for similarity score
+                            similarity_score = fuzz.ratio(normalized_foia, normalized_candidate)
+                            
+                            # Also check street name similarity specifically
+                            street_similarity = fuzz.ratio(foia_components["street"], candidate_components["street"]) if candidate_components["street"] else 0
+                            
+                            # Combined confidence score (weighted toward street similarity)
+                            confidence = (similarity_score * 0.6) + (street_similarity * 0.4)
+                            
+                            logger.debug(f"  Candidate: {candidate_address} -> {confidence:.1f}%")
+                            
+                            if confidence > best_confidence and confidence >= 75:  # Minimum threshold for fuzzy matches
+                                best_confidence = confidence
+                                best_match = candidate
+                                
+                except Exception as e:
+                    logger.warning(f"Database fuzzy search error for pattern '{pattern}': {e}")
+                    continue
+            
+            # Return best match if confidence is high enough
+            if best_match and best_confidence >= 80:  # Higher threshold for fuzzy matches
+                return MatchResult(
+                    foia_record_id=record_number,
+                    matched_parcel_id=best_match['id'],
+                    confidence_score=best_confidence,
+                    match_tier='database_fuzzy',
+                    match_method='tier3_database_fuzzy',
+                    original_address=foia_address,
+                    matched_address=best_match['address'],
+                    requires_manual_review=best_confidence < 90  # Manual review for medium confidence
+                )
+            
+        except Exception as e:
+            logger.error(f"Database fuzzy matching failed for {foia_address}: {e}")
         
-        if best_match is not None and best_confidence >= 95:
-            return MatchResult(
-                foia_record_id=record_number,
-                matched_parcel_id=best_match['id'],
-                confidence_score=best_confidence,
-                match_tier='precise_address',
-                match_method='tier3_precise_address',
-                original_address=foia_address,
-                matched_address=best_match['address'],
-                requires_manual_review=False
-            )
-        
-        # No precise match found
+        # No fuzzy match found
         return MatchResult(
             foia_record_id=record_number,
             matched_parcel_id=None,
             confidence_score=0,
             match_tier='no_match',
-            match_method='tier3_precise_address',
+            match_method='tier3_database_fuzzy',
             original_address=foia_address,
             matched_address=None,
             requires_manual_review=True
@@ -523,10 +577,10 @@ class FOIAAddressMatcher:
             logger.debug(f"Tier 2 match found for {result.foia_record_id}")
             return result
         
-        # Tier 3: Precise address match
-        result = self.tier3_fuzzy_address_match(foia_record)
+        # Tier 3: Database fuzzy match (Task 2.2)
+        result = self.tier3_database_fuzzy_match(foia_record)
         if result.matched_parcel_id:
-            logger.debug(f"Tier 3 precise match found for {result.foia_record_id}")
+            logger.debug(f"Tier 3 database fuzzy match found for {result.foia_record_id}")
             return result
         
         # No match found in any tier
