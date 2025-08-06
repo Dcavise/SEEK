@@ -1,37 +1,36 @@
-export interface Property {
-  id: string; // UUID
-  address: string; // VARCHAR(255)
-  city: string; // VARCHAR(100)  
-  state: string; // CHAR(2)
-  zip: string; // VARCHAR(10)
-  latitude: number | null; // DECIMAL(10,8)
-  longitude: number | null; // DECIMAL(11,8)
-  parcel_number: string | null; // VARCHAR(50)
-  square_feet: number | null; // INTEGER
-  zoning_code: string | null; // VARCHAR(20)
-  zoning_by_right: boolean | string | null; // BOOLEAN or VARCHAR(50) for special-exemption
-  current_occupancy: string | null; // VARCHAR(50) - E, A, Other
-  occupancy_class: string | null; // VARCHAR(100) - FOIA data for occupancy classification
-  fire_sprinklers: boolean | null; // BOOLEAN - FOIA data for fire sprinkler presence
-  assigned_to: string | null; // UUID (FK)
-  status: 'new' | 'reviewing' | 'synced' | 'not_qualified'; // Workflow status
-  created_at: string; // TIMESTAMP
-  updated_at: string; // TIMESTAMP
-  notes: string | null; // TEXTAREA
+// Import database-generated types for type safety
+import { Database } from './database.types'
+
+// Use database-generated Parcel type as foundation
+export type Parcel = Database['public']['Tables']['parcels']['Row']
+export type City = Database['public']['Tables']['cities']['Row']
+export type County = Database['public']['Tables']['counties']['Row']
+
+// Legacy Property interface - extends Parcel for backward compatibility
+export interface Property extends Parcel {
+  // Additional computed fields for UI compatibility
+  city?: string // Computed from city relationship
+  state?: string // Computed from state relationship  
+  zip?: string // Computed field
+  square_feet?: number | null // Alias for lot_size
+  zoning_code?: string | null // Legacy field
+  current_occupancy?: string | null // Legacy field
+  assigned_to?: string | null // Legacy field
+  status?: 'new' | 'reviewing' | 'synced' | 'not_qualified' // Legacy workflow status
+  notes?: string | null // Legacy field
   
-  // Additional fields for comprehensive property management
-  county: string | null; // VARCHAR(100)
-  listed_owner: string | null; // VARCHAR(255)
-  folio_int: string | null; // VARCHAR(50) - Internal folio number
-  municipal_zoning_url: string | null; // TEXT - URL to municipal zoning ordinance
-  city_portal_url: string | null; // TEXT - URL to city portal
-  parcel_sq_ft: number | null; // INTEGER - Parcel square footage
+  // Legacy sync fields
+  sync_status?: 'pending' | 'synced' | 'error' | null
+  last_synced_at?: string | null
+  external_system_id?: string | null
+  sync_error?: string | null
   
-  // Sync-related fields for external system integration
-  sync_status: 'pending' | 'synced' | 'failed' | null; // Current sync state
-  last_synced_at: string | null; // TIMESTAMP - when last successfully synced
-  external_system_id: string | null; // VARCHAR(100) - ID in external system (Salesforce, etc.)
-  sync_error: string | null; // TEXT - error message if sync failed
+  // Legacy computed fields
+  county?: string | null // Computed from county relationship
+  folio_int?: string | null // Legacy field
+  municipal_zoning_url?: string | null // Legacy field
+  city_portal_url?: string | null // Legacy field  
+  parcel_sq_ft?: number | null // Legacy field
 }
 
 export interface FilterCriteria {
