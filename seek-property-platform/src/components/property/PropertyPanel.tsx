@@ -1,11 +1,11 @@
+import { Copy, Edit, Check, User, XIcon, Building, HelpCircle, X, ChevronLeft, ChevronRight, UserPlus, Calendar, Clock, AlertCircle, ChevronDown  } from 'lucide-react';
 import React, { useState } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Copy, Edit, Check, User, XIcon } from 'lucide-react';
-import { Building, HelpCircle, X, ChevronLeft, ChevronRight, UserPlus, Calendar, Clock, AlertCircle, ChevronDown } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { Property } from '@/types/property';
 
 interface PropertyPanelProps {

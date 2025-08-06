@@ -1,11 +1,12 @@
+import { CheckCircle, Upload, ArrowRight, Database } from 'lucide-react';
 import React, { useState } from 'react';
-import { FileUpload } from '@/components/foia/FileUpload';
+
 import { ColumnMapping } from '@/components/foia/ColumnMapping';
+import { FileUpload } from '@/components/foia/FileUpload';
+import { UploadedCSVData } from '@/components/foia/types';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Upload, ArrowRight, Database } from 'lucide-react';
-import { UploadedCSVData } from '@/components/foia/types';
 
 type ImportStep = 'upload' | 'mapping' | 'processing' | 'complete';
 

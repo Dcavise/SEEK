@@ -1,10 +1,11 @@
+import { Upload, FileSpreadsheet, Database, MapPin } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import { FileUpload } from '@/components/foia';
 import { Header } from '@/components/shared/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileSpreadsheet, Database, MapPin } from 'lucide-react';
-import { FileUpload } from '@/components/foia';
 
 const ImportIndex = () => {
   const navigate = useNavigate();

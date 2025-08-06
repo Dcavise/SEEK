@@ -1,17 +1,18 @@
+import { Map, List } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '@/components/shared/Header';
-import { MapView } from '@/components/map/MapView';
-import { SearchOverlay } from '@/components/search/SearchOverlay';
-import { PropertyPanel } from '@/components/property/PropertyPanel';
+
 import { FilterPanel } from '@/components/filters/FilterPanel';
 import { QuickFilterOverlay } from '@/components/filters/QuickFilterOverlay';
+import { MapView } from '@/components/map/MapView';
+import { PropertyPanel } from '@/components/property/PropertyPanel';
+import { SearchOverlay } from '@/components/search/SearchOverlay';
+import { Header } from '@/components/shared/Header';
 import { PropertyTable } from '@/components/table/PropertyTable';
 import { Button } from '@/components/ui/button';
-import { Map, List } from 'lucide-react';
-import { Property } from '@/types/property';
-import { ExtendedFilterCriteria } from '@/lib/propertySearchService';
 import { usePropertySearch } from '@/hooks/usePropertySearch';
+import { ExtendedFilterCriteria } from '@/lib/propertySearchService';
+import { Property } from '@/types/property';
 
 const defaultFilters: ExtendedFilterCriteria = {
   current_occupancy: [],

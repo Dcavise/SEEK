@@ -1,4 +1,10 @@
+import { FileText, Database } from 'lucide-react';
 import React from 'react';
+
+import { FilePreviewData } from './types';
+
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -7,10 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, Database } from 'lucide-react';
-import { FilePreviewData } from './types';
+
 
 interface FilePreviewProps {
   data: FilePreviewData;

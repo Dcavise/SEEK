@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+
 import type { Property } from '@/types/property';
 
 export interface FOIAFilters {

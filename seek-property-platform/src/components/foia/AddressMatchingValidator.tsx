@@ -1,4 +1,22 @@
+import {
+  CheckCircle,
+  AlertTriangle,
+  MapPin,
+  FileText,
+  Download
+} from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
+
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
+import {
+  Badge,
+} from '@/components/ui/badge';
+import {
+  Button,
+} from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -7,6 +25,12 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
+  Progress,
+} from '@/components/ui/progress';
+import {
+  ScrollArea,
+} from '@/components/ui/scroll-area';
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,29 +38,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Badge,
-} from '@/components/ui/badge';
-import {
-  Button,
-} from '@/components/ui/button';
-import {
-  ScrollArea,
-} from '@/components/ui/scroll-area';
-import {
-  Progress,
-} from '@/components/ui/progress';
-import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert';
-import {
-  CheckCircle,
-  AlertTriangle,
-  MapPin,
-  FileText,
-  Download
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface AddressMatchResult {

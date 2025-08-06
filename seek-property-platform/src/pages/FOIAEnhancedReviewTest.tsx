@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, AlertTriangle, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+
 import { EnhancedAddressMatchingValidator, EnhancedValidationSummary } from '@/components/foia/EnhancedAddressMatchingValidator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // Mock Fort Worth FOIA data based on our real test results
 const mockFortWorthData = [

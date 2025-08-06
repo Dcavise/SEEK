@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Building, ArrowLeft, Search, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect, useRef } from 'react';
+
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useCitySearch } from '@/hooks/useCitySearch';
 
 interface SearchOverlayProps {

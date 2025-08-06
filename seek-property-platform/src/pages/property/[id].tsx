@@ -1,12 +1,13 @@
+import { ArrowLeft } from 'lucide-react';
 import React, { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+
+import { MapView } from '@/components/map/MapView';
+import { PropertyPanel } from '@/components/property/PropertyPanel';
+import { Header } from '@/components/shared/Header';
+import { Button } from '@/components/ui/button';
 import { mockProperties, generateMockProperties } from '@/data/mockProperties';
 import { Property } from '@/types/property';
-import { PropertyPanel } from '@/components/property/PropertyPanel';
-import { MapView } from '@/components/map/MapView';
-import { Header } from '@/components/shared/Header';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const PropertyDetail = () => {
   const { id } = useParams<{ id: string }>();

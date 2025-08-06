@@ -1,40 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Button,
-} from '@/components/ui/button';
-import {
-  Progress,
-} from '@/components/ui/progress';
-import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert';
-import {
-  Badge,
-} from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   CheckCircle,
   XCircle,
@@ -45,10 +8,51 @@ import {
   FileText,
   Activity
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useFOIADatabase } from '@/hooks/useFOIADatabase';
+import React, { useState, useEffect } from 'react';
+
 import type { AddressMatchResult } from './AddressMatchingValidator';
+
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
+import {
+  Badge,
+} from '@/components/ui/badge';
+import {
+  Button,
+} from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Progress,
+} from '@/components/ui/progress';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useFOIADatabase } from '@/hooks/useFOIADatabase';
 import type { DatabaseUpdateResult } from '@/lib/foiaDatabase';
+import { cn } from '@/lib/utils';
+
+
 
 interface DatabaseIntegrationProps {
   file: File;

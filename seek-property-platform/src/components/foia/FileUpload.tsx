@@ -1,10 +1,8 @@
+import { Upload, X, FileText, AlertCircle } from 'lucide-react';
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, FileText, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
+
+import { FilePreview } from './FilePreview';
 import { 
   FileUploadProps, 
   UploadedFile, 
@@ -13,7 +11,12 @@ import {
   MAX_FILE_SIZE,
   FileValidationResult 
 } from './types';
-import { FilePreview } from './FilePreview';
+
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   onFilesAccepted,

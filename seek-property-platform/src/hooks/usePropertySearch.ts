@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
+
 import { propertySearchService, type ExtendedFilterCriteria, type SearchResult } from '@/lib/propertySearchService';
 import type { Property } from '@/types/property';
 

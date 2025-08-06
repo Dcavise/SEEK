@@ -1,15 +1,31 @@
+import { 
+  ArrowUpDown, 
+  ArrowUp, 
+  ArrowDown, 
+  MoreVertical, 
+  ChevronLeft, 
+  ChevronRight,
+  ChevronDown,
+  Download,
+  Archive,
+  CheckCircle
+} from 'lucide-react';
 import React, { useState, useMemo, useEffect } from 'react';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -23,29 +39,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown, 
-  MoreVertical, 
-  ChevronLeft, 
-  ChevronRight,
-  ChevronDown,
-  Download,
-  Archive,
-  CheckCircle
-} from 'lucide-react';
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 import { Property } from '@/types/property';
 
 interface PropertyTableProps {

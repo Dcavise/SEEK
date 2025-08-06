@@ -1,9 +1,10 @@
+import { BarChart3, TrendingUp, MapPin, Building, Download } from 'lucide-react';
 import React from 'react';
+
 import { Header } from '@/components/shared/Header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BarChart3, TrendingUp, MapPin, Building, Download } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const AnalyticsIndex = () => {
   const marketData = [

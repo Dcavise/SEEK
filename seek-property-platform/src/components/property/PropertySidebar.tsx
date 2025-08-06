@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import { format } from 'date-fns';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Property } from '@/types/property';
+import React, { useState } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import { CopyButton } from '@/components/ui/copy-button';
-import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Property } from '@/types/property';
+
 
 interface PropertySidebarProps {
   property: Property;

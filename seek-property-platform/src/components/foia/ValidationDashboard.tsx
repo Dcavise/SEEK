@@ -1,48 +1,3 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Badge,
-} from '@/components/ui/badge';
-import {
-  Button,
-} from '@/components/ui/button';
-import {
-  ScrollArea,
-} from '@/components/ui/scroll-area';
-import {
-  Progress,
-} from '@/components/ui/progress';
-import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   CheckCircle,
   XCircle,
@@ -55,7 +10,8 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect, useMemo } from 'react';
+
 import {
   ValidationSummary,
   ValidationResult,
@@ -64,6 +20,53 @@ import {
   calculateDataQuality,
   exportValidationResults
 } from './validation';
+
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
+import {
+  Badge,
+} from '@/components/ui/badge';
+import {
+  Button,
+} from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Progress,
+} from '@/components/ui/progress';
+import {
+  ScrollArea,
+} from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+
 
 interface ValidationDashboardProps {
   data: Record<string, any>[];

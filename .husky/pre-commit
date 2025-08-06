@@ -1,0 +1,2 @@
+#!/bin/sh
+cd seek-property-platform && npx lint-staged

@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { foiaDatabase, type DatabaseUpdateResult, type ImportSession, type FOIAUpdate } from '@/lib/foiaDatabase';
+import { useState, useCallback } from 'react';
+
 import type { AddressMatchResult } from '@/components/foia/AddressMatchingValidator';
+import { foiaDatabase, type DatabaseUpdateResult, type ImportSession, type FOIAUpdate } from '@/lib/foiaDatabase';
 
 export interface UploadProgress {
   stage: 'uploading' | 'processing' | 'completed' | 'error';

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+
 import type { AddressMatchResult } from '@/components/foia/AddressMatchingValidator';
 
 // Database types

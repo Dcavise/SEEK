@@ -1,54 +1,3 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Badge,
-} from '@/components/ui/badge';
-import {
-  Button,
-} from '@/components/ui/button';
-import {
-  Checkbox,
-} from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Input,
-} from '@/components/ui/input';
-import {
-  ScrollArea,
-} from '@/components/ui/scroll-area';
-import {
-  Progress,
-} from '@/components/ui/progress';
-import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import {
   CheckCircle,
   AlertTriangle,
@@ -62,6 +11,58 @@ import {
   ArrowRight,
   History
 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert';
+import {
+  Badge,
+} from '@/components/ui/badge';
+import {
+  Button,
+} from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Checkbox,
+} from '@/components/ui/checkbox';
+import {
+  Input,
+} from '@/components/ui/input';
+import {
+  Progress,
+} from '@/components/ui/progress';
+import {
+  ScrollArea,
+} from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 // Enhanced interface for Task 2.3

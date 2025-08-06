@@ -1,12 +1,13 @@
+import { User, Mail, Building, Calendar } from 'lucide-react';
 import React from 'react';
+
 import { Header } from '@/components/shared/Header';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { User, Mail, Building, Calendar } from 'lucide-react';
 
 const SettingsProfile = () => {
   return (
