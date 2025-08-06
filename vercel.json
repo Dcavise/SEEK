@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd seek-property-platform && npm run build",
+  "outputDirectory": "seek-property-platform/dist",
+  "installCommand": "cd seek-property-platform && npm install",
+  "framework": "vite",
+  "functions": {
+    "seek-property-platform/dist/**": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
