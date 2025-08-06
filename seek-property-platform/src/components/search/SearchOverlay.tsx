@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Building, ArrowLeft, Search } from 'lucide-react';
+import { MapPin, Building, ArrowLeft, Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useCitySearch } from '@/hooks/useCitySearch';
 
 interface SearchOverlayProps {
   onCitySearchClick: () => void;
@@ -11,38 +12,14 @@ interface SearchOverlayProps {
 
 type ViewState = 'initial' | 'city-search' | 'address-search';
 
-const cities = [
-  "Boston, MA",
-  "Cambridge, MA", 
-  "Somerville, MA",
-  "Quincy, MA",
-  "Brookline, MA",
-  "Newton, MA",
-  "Waltham, MA",
-  "Medford, MA",
-  "New York, NY"
-];
-
 export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCitySelected }: SearchOverlayProps) {
   const [currentView, setCurrentView] = useState<ViewState>('initial');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredCities, setFilteredCities] = useState<string[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  // Filter cities based on search query
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = cities.filter(city => 
-        city.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 5);
-      setFilteredCities(filtered);
-      setShowDropdown(true);
-    } else {
-      setFilteredCities([]);
-      setShowDropdown(false);
-    }
-  }, [searchQuery]);
+  
+  // Use the database city search hook
+  const { cities, loading, error } = useCitySearch(searchQuery);
+  const showDropdown = searchQuery.length >= 2 && (cities.length > 0 || loading);
 
   // Auto-focus search input when city search view is shown
   useEffect(() => {
@@ -63,16 +40,15 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
   const handleBackToInitial = () => {
     setCurrentView('initial');
     setSearchQuery('');
-    setShowDropdown(false);
   };
 
-  const handleCitySelection = (city: string) => {
-    setSearchQuery(city);
-    setShowDropdown(false);
+  const handleCitySelection = (cityName: string, state: string) => {
+    const fullCityName = `${cityName}, ${state}`;
+    setSearchQuery(fullCityName);
     
     // Brief delay to show selection, then close overlay
     setTimeout(() => {
-      onCitySelected?.(city);
+      onCitySelected?.(fullCityName);
       onCitySearchClick();
     }, 200);
   };
@@ -170,18 +146,44 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
               </div>
 
               {/* Autocomplete Dropdown */}
-              {showDropdown && filteredCities.length > 0 && (
+              {showDropdown && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 animate-fade-in">
-                  {filteredCities.map((city, index) => (
+                  {loading && (
+                    <div className="px-4 py-3 flex items-center gap-3 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                      <span>Searching cities...</span>
+                    </div>
+                  )}
+                  
+                  {!loading && error && (
+                    <div className="px-4 py-3 text-red-600 text-sm">
+                      Error searching cities: {error}
+                    </div>
+                  )}
+                  
+                  {!loading && !error && cities.length === 0 && searchQuery.length >= 2 && (
+                    <div className="px-4 py-3 text-muted-foreground text-sm">
+                      No cities found matching "{searchQuery}"
+                    </div>
+                  )}
+                  
+                  {!loading && cities.map((city) => (
                     <button
-                      key={index}
-                      onClick={() => handleCitySelection(city)}
+                      key={city.id}
+                      onClick={() => handleCitySelection(city.name, city.state)}
                       className="w-full px-4 py-3 text-left hover:bg-accent transition-colors first:rounded-t-lg last:rounded-b-lg flex items-center gap-3"
                     >
                       <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-foreground">
-                        {highlightMatch(city, searchQuery)}
-                      </span>
+                      <div className="flex-1">
+                        <span className="text-foreground">
+                          {highlightMatch(city.name, searchQuery)}, {city.state}
+                        </span>
+                        {city.county && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {city.county} County
+                          </div>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
