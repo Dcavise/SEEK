@@ -1,9 +1,12 @@
-import { ChevronDown, Filter, Upload, Map, List, Search, MapPin } from 'lucide-react';
+import { ChevronDown, Filter, Upload, Map, List, Search, MapPin, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useCitySearch } from '@/hooks/useCitySearch';
+import { PropertyFilters } from '@/components/filters/PropertyFilters';
+import { FOIAFilters } from '@/lib/propertySearchService';
 
 
 interface HeaderProps {
@@ -15,6 +18,7 @@ interface HeaderProps {
   onViewToggle?: (view: 'map' | 'table') => void;
   showViewToggle?: boolean;
   onCitySearch?: (city: string) => void;
+  onFOIAFiltersChange?: (filters: FOIAFilters) => void;
 }
 
 export function Header({ 
@@ -25,34 +29,56 @@ export function Header({
   currentView = 'map',
   onViewToggle,
   showViewToggle = false,
-  onCitySearch
+  onCitySearch,
+  onFOIAFiltersChange
 }: HeaderProps) {
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   
-  const cities = [
-    "Boston, MA",
-    "Cambridge, MA", 
-    "Somerville, MA",
-    "Quincy, MA",
-    "Brookline, MA",
-    "Newton, MA",
-    "Waltham, MA",
-    "Medford, MA",
-    "New York, NY"
-  ];
-  
-  const filteredCities = cities.filter(city => 
-    city.toLowerCase().includes(searchValue.toLowerCase())
-  );
+  // Use database city search instead of hardcoded cities
+  const { cities, loading, error, isStale } = useCitySearch(searchValue);
+  const shouldShowDropdown = showDropdown && searchValue.length >= 2 && (cities.length > 0 || loading);
 
-  const handleSearch = (value: string) => {
+  const handleSearch = (cityName: string, state: string) => {
+    const fullCityName = `${cityName}, ${state}`;
     if (onCitySearch) {
-      onCitySearch(value);
+      onCitySearch(fullCityName);
       setSearchValue('');
       setShowDropdown(false);
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchValue(value);
+    setShowDropdown(value.length >= 2);
+  };
+
+  const handleInputFocus = () => {
+    setShowDropdown(searchValue.length >= 2);
+  };
+
+  const handleInputBlur = () => {
+    // Delay hiding dropdown to allow clicks
+    setTimeout(() => setShowDropdown(false), 200);
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query || query.length < 2) return text;
+    
+    const index = text.toLowerCase().indexOf(query.toLowerCase());
+    if (index === -1) return text;
+    
+    return (
+      <>
+        {text.substring(0, index)}
+        <span className="bg-blue-100 font-medium">
+          {text.substring(index, index + query.length)}
+        </span>
+        {text.substring(index + query.length)}
+      </>
+    );
   };
   
   return (
@@ -66,39 +92,82 @@ export function Header({
           </h1>
         </div>
         
-        {/* Center Section - Search Box */}
-        <div className="flex-1 flex justify-center max-w-md mx-auto relative">
-          <div className="relative w-full max-w-sm">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search city or enter address..."
-                value={searchValue}
-                onChange={(e) => {
-                  setSearchValue(e.target.value);
-                  setShowDropdown(e.target.value.length > 0);
-                }}
-                onFocus={() => setShowDropdown(searchValue.length > 0)}
-                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
+        {/* Center Section - Search Box & Filters */}
+        <div className="flex-1 flex justify-center max-w-2xl mx-auto relative">
+          <div className="flex items-center gap-3 w-full">
+            {/* Search Input */}
+            <div className="relative w-full max-w-sm">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search city or enter address..."
+                  value={searchValue}
+                  onChange={handleInputChange}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
+                  className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200 ${
+                    isStale ? 'ring-2 ring-yellow-200 bg-yellow-50' : ''
+                  }`}
+                />
+                {/* Loading indicator */}
+                {loading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  </div>
+                )}
+              </div>
+              
+              {/* Database-driven Dropdown */}
+              {shouldShowDropdown && (
+                <div className={`absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto transition-opacity duration-200 ${
+                  isStale ? 'opacity-60' : 'opacity-100'
+                }`}>
+                  {loading && (
+                    <div className="px-4 py-3 flex items-center gap-3 text-gray-500">
+                      <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                      <span>Searching cities...</span>
+                    </div>
+                  )}
+                  
+                  {!loading && error && (
+                    <div className="px-4 py-3 text-red-600 text-sm">
+                      Error: {error}
+                    </div>
+                  )}
+                  
+                  {!loading && !error && cities.length === 0 && searchValue.length >= 2 && (
+                    <div className="px-4 py-3 text-gray-500 text-sm">
+                      No cities found matching "{searchValue}"
+                    </div>
+                  )}
+                  
+                  {!loading && cities.map((city) => (
+                    <div
+                      key={city.id}
+                      onClick={() => handleSearch(city.name, city.state)}
+                      className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
+                    >
+                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <span>
+                          {highlightMatch(city.name, searchValue)}, {city.state}
+                        </span>
+                        {city.county_id && (
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            County ID: {city.county_id}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
-            {/* Dropdown */}
-            {showDropdown && filteredCities.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                {filteredCities.map((city, index) => (
-                  <div
-                    key={index}
-                    onClick={() => handleSearch(city)}
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                  >
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span>{city}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Compact FOIA Filters */}
+            {onFOIAFiltersChange && (
+              <PropertyFilters onFiltersChange={onFOIAFiltersChange} />
             )}
           </div>
         </div>

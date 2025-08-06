@@ -15,6 +15,7 @@ interface MapViewProps {
   showPanel?: boolean;
   isHeatmapMode?: boolean;
   showPerformanceMessage?: boolean;
+  centerOnProperties?: boolean; // Force center when properties change
 }
 
 export function MapView({ 
@@ -25,7 +26,8 @@ export function MapView({
   onPropertySelect,
   showPanel = false,
   isHeatmapMode = false,
-  showPerformanceMessage = false
+  showPerformanceMessage = false,
+  centerOnProperties = true
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -442,8 +444,14 @@ export function MapView({
             });
           }
         }, 300);
-      } else if (validProperties.length > 0) {
+      } else if (validProperties.length > 0 && centerOnProperties) {
         // Fly to city bounds to show all properties
+        console.log('MapView - Centering on properties:', {
+          count: validProperties.length,
+          centerOnProperties,
+          sampleCoords: validProperties[0] ? [validProperties[0].longitude, validProperties[0].latitude] : 'none'
+        });
+        
         const bounds = new mapboxgl.LngLatBounds();
         validProperties.forEach(property => {
           bounds.extend([property.longitude!, property.latitude!]);
@@ -452,9 +460,10 @@ export function MapView({
         // Wait a brief moment to ensure map is ready, then fly to bounds
         setTimeout(() => {
           if (map.current) {
+            console.log('MapView - Executing fitBounds');
             map.current.fitBounds(bounds, { 
               padding: showPanel ? { right: 440, top: 70, bottom: 50, left: 50 } : { top: 70, bottom: 50, left: 50, right: 50 },
-              maxZoom: 14,
+              maxZoom: 13,  // Slightly lower max zoom for better city-level view
               duration: 1200,  // Smooth 1.2 second transition
               essential: true  // Ensure animation completes
             });
@@ -462,7 +471,7 @@ export function MapView({
         }, 300);  // Small delay to ensure properties are rendered
       }
     }
-  }, [properties, selectedProperty, onPropertySelect, showPanel, isHeatmapMode]);
+  }, [properties, selectedProperty, onPropertySelect, showPanel, isHeatmapMode, centerOnProperties]);
 
   // Trigger resize when panel visibility changes (debounced)
   useEffect(() => {
