@@ -1,0 +1,76 @@
+{
+  "test_metadata": {
+    "timestamp": "2025-08-06T11:43:36.478401",
+    "purpose": "Diagnose Fort Worth search issue - Authentication testing",
+    "background": "Backend finds 326,334 properties, frontend returns zero results",
+    "hypothesis": "RLS policies blocking anonymous frontend access"
+  },
+  "test_results": {
+    "service_key": {
+      "key_type": "SERVICE KEY",
+      "key_masked": "eyJhbGciOi...655bpTVT4s",
+      "success": true,
+      "cities_found": 1,
+      "parcels_count": 326334,
+      "sample_data": [
+        {
+          "id": "79ffb845-6199-4766-a7c2-0f06da5f7f0e",
+          "address": "6825 LANCELOT CT",
+          "fire_sprinklers": null
+        },
+        {
+          "id": "82e68599-f554-44d6-b74f-921867794ee7",
+          "address": "10613 BACHMAN DR",
+          "fire_sprinklers": null
+        },
+        {
+          "id": "d5d0a3dc-33c0-400c-879e-97b3f6d95776",
+          "address": "1109 COLVIN ST",
+          "fire_sprinklers": null
+        }
+      ],
+      "error": null,
+      "timing_ms": 544.712
+    },
+    "anon_key": {
+      "key_type": "ANON KEY",
+      "key_masked": "eyJhbGciOi...L0Cp6TuMA4",
+      "success": true,
+      "cities_found": 1,
+      "parcels_count": 326334,
+      "sample_data": [
+        {
+          "id": "79ffb845-6199-4766-a7c2-0f06da5f7f0e",
+          "address": "6825 LANCELOT CT",
+          "fire_sprinklers": null
+        },
+        {
+          "id": "82e68599-f554-44d6-b74f-921867794ee7",
+          "address": "10613 BACHMAN DR",
+          "fire_sprinklers": null
+        },
+        {
+          "id": "d5d0a3dc-33c0-400c-879e-97b3f6d95776",
+          "address": "1109 COLVIN ST",
+          "fire_sprinklers": null
+        }
+      ],
+      "error": null,
+      "timing_ms": 517.331
+    }
+  },
+  "diagnosis": {
+    "auth_blocking_issue": false,
+    "auth_not_the_issue": true,
+    "general_db_issue": false,
+    "conclusion": "Authentication is NOT the cause of the Fort Worth search issue"
+  },
+  "recommendations": [
+    "Check frontend search query implementation",
+    "Verify frontend API endpoint URLs and parameters",
+    "Examine JavaScript console for runtime errors",
+    "Test frontend network requests with browser dev tools",
+    "Compare frontend queries with working backend queries",
+    "Check React component state management and data flow"
+  ]
+}

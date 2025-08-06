@@ -1,0 +1,58 @@
+{
+  "investigation_date": "2025-08-06",
+  "issue": "Frontend getting NaN coordinates despite user claiming coordinate data exists",
+  "findings": {
+    "database_status": {
+      "latitude_column_exists": true,
+      "longitude_column_exists": true,
+      "total_parcels": 1448291,
+      "parcels_with_coordinates": 0,
+      "coordinate_coverage": "0% - ALL NULL VALUES"
+    },
+    "original_csv_data": {
+      "coordinates_exist": true,
+      "coverage_tarrant": "99.9%",
+      "coverage_dallas": "99.9%",
+      "coverage_bexar": "99.9%",
+      "sample_coordinates": [
+        "32.866032,-97.475579",
+        "32.679344,-97.129595", 
+        "32.570419,-97.242165"
+      ]
+    },
+    "cleaned_csv_data": {
+      "coordinates_preserved": true,
+      "headers_include_lat_lng": true,
+      "sample_data": "32.866032,-97.475579"
+    },
+    "import_script_analysis": {
+      "normalizer_preserves_coords": true,
+      "fast_supabase_import_missing_coords": true,
+      "issue_identified": "fast_supabase_import.py does not extract latitude/longitude from CSV"
+    }
+  },
+  "root_cause": "The fast_supabase_import.py script extracts many fields (parcel_number, address, owner_name, property_value, lot_size) but completely omits latitude and longitude columns during the data processing phase.",
+  "solution": {
+    "primary": "Update fast_supabase_import.py to extract latitude/longitude columns",
+    "alternative": "Re-import coordinate data for existing records",
+    "verification": "Test with Fort Worth sample to confirm coordinates appear in database"
+  },
+  "impact": {
+    "affected_features": [
+      "Map visualization",
+      "Spatial queries", 
+      "Location-based search",
+      "Property positioning"
+    ],
+    "severity": "HIGH - Core mapping functionality broken"
+  },
+  "files_to_modify": [
+    "/scripts/import/fast_supabase_import.py - Add latitude/longitude extraction"
+  ],
+  "verification_steps": [
+    "1. Update import script to include coordinates",
+    "2. Re-import sample county (e.g., Tarrant/Fort Worth)",
+    "3. Query database to verify coordinates exist", 
+    "4. Test frontend map functionality"
+  ]
+}

@@ -60,9 +60,9 @@ Visit http://localhost:5173 to see the frontend.
 ## 🏗️ Architecture
 
 ### Backend (Python)
-- **Database**: Supabase (PostgreSQL) with 700k+ property records
+- **Database**: Supabase (PostgreSQL) with 1.4M+ property records
 - **Data Pipeline**: Automated import from 182 Texas county CSV files
-- **Key Features**: Property search, FOIA data matching, performance monitoring
+- **Key Features**: Property search, FOIA data matching, coordinate import, performance monitoring
 
 ### Frontend (React + TypeScript)
 - **Framework**: React 18.3.1 with Vite
@@ -74,14 +74,14 @@ Visit http://localhost:5173 to see the frontend.
 
 **Database Platform**: Supabase (PostgreSQL)  
 **Live Database**: https://mpkprmjejiojdjbkkbmn.supabase.co  
-**Current Size**: ~262MB with 701,089+ parcel records  
+**Current Size**: ~262MB with 1,448,291 parcel records  
 **Architecture Pattern**: Geographic hierarchy with user workflow management
 
 #### Core Table Structure
 
 ```
 Geographic Hierarchy (Normalized):
-states (1) → counties (2) → cities (923) → parcels (701,089+)
+states (1) → counties (3) → cities (923+) → parcels (1,448,291)
 ```
 
 **Primary Tables:**
@@ -94,6 +94,8 @@ states (id, code, name, created_at, updated_at)
         └── parcels (
              id, parcel_number, address, city_id, county_id, state_id,
              owner_name, property_value, lot_size,
+             -- Geographic coordinates (99.4% coverage)
+             latitude, longitude,
              -- FOIA enhancement columns
              zoned_by_right, occupancy_class, fire_sprinklers,
              updated_by, created_at, updated_at
@@ -225,9 +227,9 @@ foia_updates: match_type IN ('exact_match', 'potential_match', 'no_match', 'inva
 
 | Table | Size | Records | Purpose |
 |-------|------|---------|---------|
-| **parcels** | 262 MB | 701,089 | Core property data |
-| **cities** | 336 kB | 923 | Texas cities |
-| **counties** | 72 kB | 2 | Texas counties (Bexar + 1) |
+| **parcels** | ~500 MB | 1,448,291 | Core property data with coordinates |
+| **cities** | 336 kB | 923+ | Texas cities |
+| **counties** | 72 kB | 3 | Texas counties (Bexar, Tarrant, Test) |
 | **states** | 88 kB | 1 | Texas state record |
 | **foia_import_sessions** | 8 kB | Variable | FOIA upload tracking |
 | **foia_updates** | 8 kB | Variable | Individual address updates |
@@ -345,12 +347,12 @@ SEEK/
 
 ## 📊 Database Status
 
-- **701,089 parcels** imported and indexed (Bexar County complete)
-- **923 cities** across multiple Texas counties  
+- **1,448,291 parcels** imported and indexed with **99.4% coordinate coverage**
+- **923+ cities** across 3 Texas counties (Bexar, Tarrant, Test Sample)
 - **Sub-25ms search** performance with optimized indexes
 - **Row Level Security** implemented with role-based access
 - **Automated performance monitoring** with health checks
-- **FOIA-ready schema** for Phase 2 integration
+- **FOIA-ready schema** with complete integration pipeline
 
 ### Current Performance Metrics
 | Query Type | Performance | Status |
@@ -383,11 +385,12 @@ git push origin main
 ## 🎯 Current Status & Next Steps
 
 ### ✅ Completed (Phase 1)
-- Database foundation with 701,089 parcels
-- Optimized bulk import pipeline (4,477 records/sec)
-- Performance-tuned indexes and queries (<25ms)
-- Row Level Security and user authentication ready
-- Professional developer experience with Makefile and scripts
+- **Database foundation with 1,448,291 parcels** across 3 Texas counties
+- **99.4% coordinate coverage** (1,439,463 parcels with lat/lng)
+- **Optimized bulk import pipeline** (4,477 records/sec, 221x improvement)
+- **Performance-tuned indexes and queries** (<25ms search performance)
+- **Row Level Security** and user authentication ready
+- **Professional developer experience** with Makefile and automated scripts
 
 ### ✅ Phase 2 - FOIA Integration (In Progress)
 - **Task 1.1 COMPLETE**: FOIA Data Upload Interface
@@ -475,15 +478,18 @@ git push origin main
 
 ## 📈 Performance
 
-- **Search Speed**: Sub-25ms property search across 701k+ records
+- **Search Speed**: Sub-25ms property search across 1.4M+ records
 - **Import Speed**: 4,477 records/second with bulk optimization (221x improvement)
+- **Coordinate Import**: 99,000+ updates/second with optimized bulk operations
 - **Memory Usage**: Efficient batch processing with 10k record batches
-- **Database Size**: ~262MB with indexes and normalized data
+- **Database Size**: ~500MB with indexes, normalized data, and coordinates
 
 ### Performance Optimization History
 - **Original Import**: 4 records/second (48+ hours estimated)
 - **Optimized Import**: 4,477 records/second (2.6 minutes actual)
+- **Coordinate Import**: 99,000+ updates/second with bulk SQL operations
 - **Query Performance**: 70-90% improvement with critical indexes
+- **Coverage Achievement**: 47% → 99.4% coordinate coverage in single session
 
 ## 🛡️ Security
 

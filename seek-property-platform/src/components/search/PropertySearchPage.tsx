@@ -1,12 +1,13 @@
-import React, { useState, Suspense, useTransition, useDeferredValue } from 'react';
 import { Search, Settings, Filter, X, Loader2 } from 'lucide-react';
+import React, { useState, Suspense, useTransition, useDeferredValue } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { SearchResults } from './SearchResults';
 import { SearchOverlay } from './SearchOverlay';
+import { SearchResults } from './SearchResults';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { usePropertySearch } from '@/hooks/usePropertySearch';
 import type { ExtendedFilterCriteria, FOIAFilters } from '@/lib/propertySearchService';
 
@@ -176,7 +177,7 @@ export function PropertySearchPage({ className }: PropertySearchPageProps) {
   // Search criteria state
   const [searchCriteria, setSearchCriteria] = useState<ExtendedFilterCriteria>({
     page: 1,
-    limit: 50,
+    limit: 500, // Increased for better map visualization
     sortBy: 'address',
     sortOrder: 'asc'
   });

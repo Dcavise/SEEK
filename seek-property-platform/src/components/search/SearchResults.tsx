@@ -1,8 +1,8 @@
-import React, { Suspense } from 'react';
 import { Search, MapPin, Building2, Loader2 } from 'lucide-react';
+import React, { Suspense } from 'react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePropertySearch } from '@/hooks/usePropertySearch';
 import type { ExtendedFilterCriteria } from '@/lib/propertySearchService';

@@ -2,10 +2,10 @@
 
 ## Project Context
 **Date Created**: 2025-08-05
-**Last Updated**: 2025-08-05
+**Last Updated**: 2025-08-06 (Coordinate Import Completion)
 **Project Type**: Internal real estate investment tool
 **Users**: 5-15 team members searching for Texas properties with specific FOIA characteristics
-**Current Phase**: Phase 2 - FOIA Integration (Task 1 Complete, Task 2 Address Normalization Priority)
+**Current Phase**: Phase 2 - FOIA Integration (Task 1-2 Complete, Task 3.2 API Complete, Coordinate Import Complete ✅)
 
 ## Technical Architecture
 
@@ -62,6 +62,8 @@
    - address: TEXT - Full property address
    - city_id: UUID foreign key → cities
    - county_id: UUID foreign key → counties
+   - latitude: DECIMAL(10,8) - Geographic coordinate (99.4% coverage)
+   - longitude: DECIMAL(11,8) - Geographic coordinate (99.4% coverage)
    - owner_name: VARCHAR(255)
    - property_value: DECIMAL(12,2)
    - lot_size: DECIMAL(10,2)
@@ -415,6 +417,37 @@ const usePropertySearch = (options) => ({
 - ✅ Frontend Integration: Types updated, builds successful
 - ✅ Performance: 60ms queries (meets functional requirements)
 - ✅ Documentation: Complete with 6 usage examples
+
+### Phase 1.6: Coordinate Import System (COMPLETED - August 6, 2025)
+
+#### Problem Analysis
+- **Initial Coverage**: Only 47% of parcels had latitude/longitude coordinates
+- **Root Cause**: Original import scripts didn't extract coordinate columns from CSV files
+- **Impact**: Map functionality showing "Invalid LngLat object: (NaN, NaN)" errors
+
+#### Solution Implementation
+**Optimized Coordinate Updater** (`optimized_coordinate_updater.py`):
+- **Approach**: Simple parcel_number-based upserts (user's correct suggestion)
+- **Performance**: 99,000+ updates/second with bulk SQL operations
+- **Coverage**: 98.4% CSV parcel numbers have exact database matches
+- **Architecture**: Temporary table approach with proper SQL parameterization
+
+#### Technical Details
+```python
+# Bulk update strategy using temporary tables
+1. CREATE TEMP TABLE coord_updates (parcel_number, latitude, longitude)
+2. BULK INSERT coordinate data using execute_values()
+3. UPDATE parcels SET lat=t.lat, lng=t.lng FROM coord_updates t 
+   WHERE parcels.parcel_number = t.parcel_number
+4. DROP TEMP TABLE
+```
+
+#### Results Achieved
+- **Total Parcels**: 1,448,291
+- **With Coordinates**: 1,439,463 (99.4% coverage)
+- **Improvement**: 47.0% → 99.4% coverage in single session
+- **Processing Speed**: 99,000+ updates/second
+- **Remaining**: 8,828 parcels (likely edge cases with invalid parcel numbers)
 
 ## Known Issues & Solutions
 1. **CSV Encoding**: Some county files may have encoding issues

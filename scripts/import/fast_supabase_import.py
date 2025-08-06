@@ -273,6 +273,10 @@ class FastSupabaseImporter:
                 property_value = self._parse_numeric(row, ['parval', 'property_value', 'market_value', 'appraised_value', 'total_value'])
                 lot_size = self._parse_numeric(row, ['gisacre', 'lot_size', 'acreage', 'acres', 'deeded_acres'])
                 
+                # Coordinate fields
+                latitude = self._parse_numeric(row, ['latitude', 'lat', 'y', 'y_coord', 'northing'])
+                longitude = self._parse_numeric(row, ['longitude', 'lng', 'lon', 'x', 'x_coord', 'easting'])
+                
                 # Validate required fields
                 if not parcel_number or not address:
                     continue
@@ -286,6 +290,9 @@ class FastSupabaseImporter:
                     'owner_name': str(owner_name)[:255] if owner_name else None,
                     'property_value': property_value,
                     'lot_size': lot_size,
+                    # Coordinate fields
+                    'latitude': latitude,
+                    'longitude': longitude,
                     # FOIA fields - set to None for now
                     'zoned_by_right': None,
                     'occupancy_class': None,

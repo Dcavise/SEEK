@@ -6,7 +6,7 @@ export interface City {
   id: string;
   name: string;
   state: string;
-  county?: string;
+  county_id?: string;
 }
 
 export function useCitySearch(query: string) {
@@ -36,7 +36,7 @@ export function useCitySearch(query: string) {
         // Focus on Texas cities first, then expand to other states
         const { data, error: searchError } = await supabase
           .from('cities')
-          .select('id, name, state, county')
+          .select('id, name, state, county_id')
           .or(`name.ilike.%${deferredQuery}%`) // Use deferred query for actual search
           .order('state', { ascending: false }) // TX comes after most states alphabetically
           .order('name', { ascending: true })

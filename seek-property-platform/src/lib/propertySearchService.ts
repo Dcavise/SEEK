@@ -177,7 +177,33 @@ export class PropertySearchService {
 
     // Apply geographic filters
     if (city) {
-      query = query.ilike('city', `%${city}%`);
+      // Extract just the city name from formats like "Fort Worth, TX"
+      const cityName = city.split(',')[0].trim();
+      console.log('🔍 City search debug:', { originalCity: city, extractedCityName: cityName });
+      
+      // First, find matching city IDs from the cities table
+      const { data: matchingCities, error: cityError } = await supabase
+        .from('cities')
+        .select('id, name')
+        .ilike('name', `%${cityName}%`);
+        
+      console.log('🏙️ City query result:', { cityName, matchingCities, cityError });
+        
+      if (cityError) {
+        console.error('❌ City query error:', cityError);
+        throw cityError;
+      }
+      
+      if (matchingCities && matchingCities.length > 0) {
+        // Filter parcels by the matching city IDs
+        const cityIds = matchingCities.map(c => c.id);
+        console.log('✅ Found cities, using IDs:', cityIds);
+        query = query.in('city_id', cityIds);
+      } else {
+        // No matching cities found, return empty result by using impossible condition
+        console.warn('⚠️ No matching cities found for:', cityName);
+        query = query.eq('city_id', '00000000-0000-0000-0000-000000000000'); // Invalid UUID that won't match any records
+      }
     }
     if (state) {
       query = query.eq('state', state);
@@ -187,6 +213,11 @@ export class PropertySearchService {
     }
 
     // Apply property characteristic filters
+    // Note: square_feet, current_occupancy, status, assigned_to columns don't exist in actual database
+    // Removing these filters to prevent 400 errors
+    // TODO: Map to existing columns or add missing columns to database
+    
+    /*
     if (current_occupancy && current_occupancy.length > 0) {
       query = query.in('current_occupancy', current_occupancy);
     }
@@ -208,6 +239,7 @@ export class PropertySearchService {
         query = query.eq('assigned_to', assigned_to);
       }
     }
+    */
 
     // Apply FOIA-specific filters (NEW FUNCTIONALITY)
     if (foiaFilters) {
@@ -334,11 +366,26 @@ export class PropertySearchService {
     const { foiaFilters, ...nonFoiaFilters } = baseCriteria;
     
     if (nonFoiaFilters.city) {
-      baseQuery = baseQuery.ilike('city', `%${nonFoiaFilters.city}%`);
+      // Same fix as searchProperties - need to use city_id instead of city column
+      const cityName = nonFoiaFilters.city.split(',')[0].trim();
+      const { data: matchingCities } = await supabase
+        .from('cities')
+        .select('id')
+        .ilike('name', `%${cityName}%`);
+        
+      if (matchingCities && matchingCities.length > 0) {
+        const cityIds = matchingCities.map(c => c.id);
+        baseQuery = baseQuery.in('city_id', cityIds);
+      } else {
+        baseQuery = baseQuery.eq('city_id', '00000000-0000-0000-0000-000000000000');
+      }
     }
+    // Removed current_occupancy filter - column doesn't exist in database
+    /*
     if (nonFoiaFilters.current_occupancy?.length) {
       baseQuery = baseQuery.in('current_occupancy', nonFoiaFilters.current_occupancy);
     }
+    */
     // Add other non-FOIA filters as needed...
 
     // Count properties with fire sprinklers

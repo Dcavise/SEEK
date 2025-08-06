@@ -2,13 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import TeamAssignments from "./pages/team/assignments";
 import AnalyticsIndex from "./pages/analytics/index";
 import AnalyticsPipeline from "./pages/analytics/pipeline";
-import SettingsProfile from "./pages/settings/profile";
-import FOIAImportTest from "./pages/FOIAImportTest";
-import { FOIAEnhancedReviewTest } from "./pages/FOIAEnhancedReviewTest";
 import DebugCSVUpload from "./pages/DebugCSVUpload";
+import { FOIAEnhancedReviewTest } from "./pages/FOIAEnhancedReviewTest";
+import FOIAImportTest from "./pages/FOIAImportTest";
 import ImportIndex from "./pages/import/index";
 import ImportMapping from "./pages/import/mapping";
 import ImportPreview from "./pages/import/preview";
@@ -16,6 +14,8 @@ import ImportResults from "./pages/import/results";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import PropertyDetail from "./pages/property/[id]";
+import SettingsProfile from "./pages/settings/profile";
+import TeamAssignments from "./pages/team/assignments";
 import TeamIndex from "./pages/team/index";
 
 import { Toaster as Sonner } from "@/components/ui/sonner";

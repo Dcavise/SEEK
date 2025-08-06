@@ -51,7 +51,7 @@ export interface UsePropertySearchReturn {
 
 const defaultSearchCriteria: ExtendedFilterCriteria = {
   page: 1,
-  limit: 50,
+  limit: 500, // Increased for better map visualization
   sortBy: 'address',
   sortOrder: 'asc'
 };

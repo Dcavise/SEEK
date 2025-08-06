@@ -26,7 +26,7 @@ const defaultFilters: ExtendedFilterCriteria = {
     occupancy_class: null
   },
   page: 1,
-  limit: 50,
+  limit: 500, // Increased for better map visualization
   sortBy: 'address',
   sortOrder: 'asc'
 };
@@ -175,11 +175,10 @@ const Index = () => {
 
   const handleCitySearch = () => {
     // This will be called when overlay closes
-    setIsLoading(true);
+    // Loading state is managed by usePropertySearch hook
     
-    // Show loading state briefly, then exit empty state and generate properties
+    // Exit empty state - properties will be loaded by the hook
     setTimeout(() => {
-      setIsLoading(false);
       setIsEmptyState(false);
     }, 1500);
   };

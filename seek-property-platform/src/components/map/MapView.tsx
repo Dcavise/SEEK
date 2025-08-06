@@ -32,6 +32,20 @@ export function MapView({
   const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const [currentZoom, setCurrentZoom] = useState(12);
 
+  // Filter properties with valid coordinates to prevent NaN errors
+  const validProperties = properties.filter(property => 
+    property.latitude != null && 
+    property.longitude != null && 
+    !isNaN(Number(property.latitude)) && 
+    !isNaN(Number(property.longitude))
+  );
+
+  console.log('MapView - properties analysis:', {
+    total: properties.length,
+    validCoordinates: validProperties.length,
+    missingCoordinates: properties.length - validProperties.length
+  });
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) {
@@ -94,13 +108,13 @@ export function MapView({
 
     const hasControls = document.querySelector('.mapboxgl-ctrl-group');
     
-    if (properties.length > 0 && !hasControls) {
+    if (validProperties.length > 0 && !hasControls) {
       // Add navigation controls when we have properties
       map.current.addControl(
         new mapboxgl.NavigationControl(),
         'top-right'
       );
-    } else if (properties.length === 0 && hasControls) {
+    } else if (validProperties.length === 0 && hasControls) {
       // Remove controls in empty state
       const controls = map.current._controls;
       controls.forEach(control => {
@@ -109,16 +123,16 @@ export function MapView({
         }
       });
     }
-  }, [properties.length]);
+  }, [validProperties.length]);
 
   // Add heatmap layer function
   const addHeatmapLayer = () => {
-    if (!map.current || properties.length === 0) return;
+    if (!map.current || validProperties.length === 0) return;
 
     // Create GeoJSON data for heatmap
     const heatmapData = {
       type: 'FeatureCollection' as const,
-      features: properties.map(property => ({
+      features: validProperties.map(property => ({
         type: 'Feature' as const,
         geometry: {
           type: 'Point' as const,
@@ -225,9 +239,9 @@ export function MapView({
     });
 
     // Fit bounds for heatmap
-    if (properties.length > 0) {
+    if (validProperties.length > 0) {
       const bounds = new mapboxgl.LngLatBounds();
-      properties.forEach(property => {
+      validProperties.forEach(property => {
         bounds.extend([property.longitude!, property.latitude!]);
       });
       // Fit bounds for heatmap with better padding
@@ -257,7 +271,7 @@ export function MapView({
 
   // Add individual markers
   const addMarkers = () => {
-    properties.forEach(property => {
+    validProperties.forEach(property => {
       const isSelected = selectedProperty?.id === property.id;
       
       // Create marker element
@@ -428,10 +442,10 @@ export function MapView({
             });
           }
         }, 300);
-      } else if (properties.length > 0) {
+      } else if (validProperties.length > 0) {
         // Fly to city bounds to show all properties
         const bounds = new mapboxgl.LngLatBounds();
-        properties.forEach(property => {
+        validProperties.forEach(property => {
           bounds.extend([property.longitude!, property.latitude!]);
         });
         
