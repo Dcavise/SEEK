@@ -6,7 +6,6 @@ import { MapView } from '@/components/map/MapView';
 import { PropertyPanel } from '@/components/property/PropertyPanel';
 import { Header } from '@/components/shared/Header';
 import { Button } from '@/components/ui/button';
-import { mockProperties, generateMockProperties } from '@/data/mockProperties';
 import { Property } from '@/types/property';
 
 const PropertyDetail = () => {
@@ -32,14 +31,12 @@ const PropertyDetail = () => {
       };
     }
     
-    // If no state, generate fallback data
-    const fallbackProperties = [...mockProperties, ...generateMockProperties(75)];
-    const fallbackProperty = fallbackProperties.find(p => p.id === id) || fallbackProperties[0];
-    
-    console.log('PropertyDetail - using fallback data');
+    // If no state, redirect back to search
+    console.log('PropertyDetail - no state data, redirecting to search');
+    navigate('/', { replace: true });
     return {
-      properties: fallbackProperties,
-      property: fallbackProperty
+      properties: [],
+      property: null
     };
   }, [location.state, id]);
   
