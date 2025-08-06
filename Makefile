@@ -76,6 +76,10 @@ import-single: check-env ## Import single county (usage: make import-single COUN
 analyze: check-env ## Run database performance analysis
 	@. venv/bin/activate && python tests/integration/test_performance.py
 
+test-api: check-env ## Test FOIA-enhanced search API functionality
+	@echo "Testing FOIA Search API (Task 3.2)..."
+	@. venv/bin/activate && python test_task_3_2_final.py
+
 # Utilities
 clean: ## Clean build artifacts and cache
 	@echo "Cleaning build artifacts..."

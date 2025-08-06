@@ -9,16 +9,25 @@ import { QuickFilterOverlay } from '@/components/filters/QuickFilterOverlay';
 import { PropertyTable } from '@/components/table/PropertyTable';
 import { Button } from '@/components/ui/button';
 import { Map, List } from 'lucide-react';
-import { Property, FilterCriteria } from '@/types/property';
+import { Property } from '@/types/property';
+import { ExtendedFilterCriteria } from '@/lib/propertySearchService';
+import { usePropertySearch } from '@/hooks/usePropertySearch';
 
-const defaultFilters: FilterCriteria = {
-  zoning_by_right: null,
-  fire_sprinkler_status: null,
+const defaultFilters: ExtendedFilterCriteria = {
   current_occupancy: [],
   min_square_feet: 0,
   max_square_feet: 100000,
   status: [],
-  assigned_to: null
+  assigned_to: null,
+  foiaFilters: {
+    fire_sprinklers: null,
+    zoned_by_right: null,
+    occupancy_class: null
+  },
+  page: 1,
+  limit: 50,
+  sortBy: 'address',
+  sortOrder: 'asc'
 };
 
 const generateProperties = (city: string, count?: number): Property[] => {
@@ -111,91 +120,56 @@ const generateProperties = (city: string, count?: number): Property[] => {
 const Index = () => {
   const navigate = useNavigate();
   const [isEmptyState, setIsEmptyState] = useState<boolean>(true);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState<boolean>(false);
-  const [filters, setFilters] = useState<FilterCriteria>(defaultFilters);
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
-  const [hasActiveFilters, setHasActiveFilters] = useState<boolean>(false);
+  const [filters, setFilters] = useState<ExtendedFilterCriteria>(defaultFilters);
   const [currentView, setCurrentView] = useState<'map' | 'table'>('map');
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [isOverloadMode, setIsOverloadMode] = useState<boolean>(false);
   const [showQuickFilter, setShowQuickFilter] = useState<boolean>(false);
   const [quickFilterEstimate, setQuickFilterEstimate] = useState<number>(0);
 
-  // Filter logic with live preview
-  const applyFilters = (tempFilters: FilterCriteria = filters) => {
-    let filtered = [...properties];
-    
-    // Status filters
-    if (tempFilters.status?.length > 0) {
-      filtered = filtered.filter(p => tempFilters.status.includes(p.status));
-    }
-    
-    // Zoning by right filter
-    if (tempFilters.zoning_by_right !== null) {
-      filtered = filtered.filter(p => p.zoning_by_right === tempFilters.zoning_by_right);
-    }
-    
-    // Fire sprinkler filter
-    if (tempFilters.fire_sprinkler_status !== null) {
-      filtered = filtered.filter(p => p.fire_sprinkler_status === tempFilters.fire_sprinkler_status);
-    }
-    
-    // Current occupancy filters
-    if (tempFilters.current_occupancy?.length > 0) {
-      filtered = filtered.filter(p => 
-        p.current_occupancy && tempFilters.current_occupancy.includes(p.current_occupancy)
-      );
-    }
-    
-    // Size filters
-    if (tempFilters.min_square_feet > 0) {
-      filtered = filtered.filter(p => (p.square_feet || 0) >= tempFilters.min_square_feet);
-    }
-    if (tempFilters.max_square_feet < 100000) {
-      filtered = filtered.filter(p => (p.square_feet || 0) <= tempFilters.max_square_feet);
-    }
-    
-    // Assigned to filter
-    if (tempFilters.assigned_to !== null) {
-      filtered = filtered.filter(p => p.assigned_to === tempFilters.assigned_to);
-    }
-    
-    return filtered;
+  // Use the FOIA-enhanced property search hook
+  const {
+    properties,
+    isLoading,
+    totalProperties,
+    filterCounts,
+    searchCriteria,
+    updateSearchCriteria,
+    clearFilters: clearSearchFilters
+  } = usePropertySearch({
+    enabled: !isEmptyState && !!filters.city
+  });
+
+  // Check if we have active filters
+  const hasActiveFilters = () => {
+    return (filters.status?.length || 0) > 0 || 
+           (filters.current_occupancy?.length || 0) > 0 ||
+           (filters.min_square_feet || 0) > 0 ||
+           (filters.max_square_feet || 100000) < 100000 ||
+           filters.assigned_to !== null ||
+           filters.foiaFilters?.fire_sprinklers !== null ||
+           filters.foiaFilters?.zoned_by_right !== null ||
+           filters.foiaFilters?.occupancy_class !== null;
   };
 
-  const updateFilteredProperties = () => {
-    const filtered = applyFilters();
-    setFilteredProperties(filtered);
-    
-    // Check if we have active filters
-    const isActive = (filters.status?.length || 0) > 0 || 
-                    filters.zoning_by_right !== null || 
-                    filters.fire_sprinkler_status !== null ||
-                    (filters.current_occupancy?.length || 0) > 0 ||
-                    filters.min_square_feet > 0 ||
-                    filters.max_square_feet < 100000 ||
-                    filters.assigned_to !== null;
-    setHasActiveFilters(isActive);
-  };
-
-  // Calculate preview count for live feedback
-  const getPreviewCount = (tempFilters: FilterCriteria) => {
-    return applyFilters(tempFilters).length;
+  // Get preview count for live feedback (use current properties length for now)
+  const getPreviewCount = () => {
+    return properties.length;
   };
 
   const getActiveFilterCount = () => {
     if (!filters) return 0;
     
     return (filters.status?.length || 0) + 
-           (filters.zoning_by_right !== null ? 1 : 0) + 
-           (filters.fire_sprinkler_status !== null ? 1 : 0) + 
            (filters.current_occupancy?.length || 0) +
-           (filters.min_square_feet > 0 ? 1 : 0) + 
-           (filters.max_square_feet < 100000 ? 1 : 0) +
-           (filters.assigned_to !== null ? 1 : 0);
+           ((filters.min_square_feet || 0) > 0 ? 1 : 0) + 
+           ((filters.max_square_feet || 100000) < 100000 ? 1 : 0) +
+           (filters.assigned_to !== null ? 1 : 0) +
+           (filters.foiaFilters?.fire_sprinklers !== null ? 1 : 0) +
+           (filters.foiaFilters?.zoned_by_right !== null ? 1 : 0) +
+           (filters.foiaFilters?.occupancy_class !== null ? 1 : 0);
   };
 
   const handleCitySearch = () => {
@@ -212,35 +186,30 @@ const Index = () => {
   const handleCitySelected = (city: string) => {
     console.log('City selected:', city);
     
-    // Start loading state
-    setIsLoading(true);
+    // Update search criteria with the selected city
+    const newFilters = {
+      ...filters,
+      city: city
+    };
+    setFilters(newFilters);
+    updateSearchCriteria(newFilters);
     
-    // Generate properties for the selected city
-    const newProperties = generateProperties(city);
+    // Exit empty state
+    setIsEmptyState(false);
     
-    // Set properties after a brief delay to ensure smooth loading
-    setTimeout(() => {
-      setProperties(newProperties);
-      setFilteredProperties(newProperties);
-      
-      // Check for overload scenario (500+ properties)
-      if (newProperties.length >= 500) {
-        setIsOverloadMode(true);
-        setShowQuickFilter(true);
-        setCurrentView('map'); // Force map view for overload
-      } else {
-        setIsOverloadMode(false);
-      }
-      
-      // Select the first property by default (if not in overload mode)
-      if (newProperties.length < 500) {
-        setSelectedProperty(newProperties[0]);
-      }
-      
-      // Exit loading state
-      setIsLoading(false);
-      setIsEmptyState(false);
-    }, 500); // Half second delay for smooth transition
+    // Select the first property when results load
+    if (properties.length > 0) {
+      setSelectedProperty(properties[0]);
+    }
+    
+    // Check for overload scenario (500+ properties)
+    if (totalProperties >= 500) {
+      setIsOverloadMode(true);
+      setShowQuickFilter(true);
+      setCurrentView('map');
+    } else {
+      setIsOverloadMode(false);
+    }
   };
 
   const handleAddressSearch = () => {
@@ -253,7 +222,7 @@ const Index = () => {
     navigate(`/property/${property.id}`, { 
       state: { 
         property: property,
-        properties: displayProperties 
+        properties: properties 
       }
     });
   };
@@ -262,19 +231,23 @@ const Index = () => {
     setIsFilterPanelOpen(!isFilterPanelOpen);
   };
 
-  const handleFiltersChange = (newFilters: FilterCriteria) => {
+  const handleFiltersChange = (newFilters: ExtendedFilterCriteria) => {
     setFilters(newFilters);
   };
 
   const handleApplyFilters = () => {
-    updateFilteredProperties();
+    // Update the search criteria to trigger a new search
+    updateSearchCriteria(filters);
     setIsFilterPanelOpen(false);
   };
 
   const handleClearFilters = () => {
-    setFilters(defaultFilters);
-    setFilteredProperties(properties);
-    setHasActiveFilters(false);
+    const clearedFilters = {
+      ...defaultFilters,
+      city: filters.city // Preserve the city search
+    };
+    setFilters(clearedFilters);
+    updateSearchCriteria(clearedFilters);
   };
 
   const handleViewToggle = (view: 'map' | 'table') => {
@@ -323,8 +296,7 @@ const Index = () => {
     // Keep overload mode active to show heatmap
   };
 
-  const showPropertiesView = !isEmptyState && !isLoading && properties.length > 0;
-  const displayProperties = hasActiveFilters ? filteredProperties : properties;
+  const showPropertiesView = !isEmptyState && properties.length > 0;
 
   return (
     <div className="h-screen bg-background relative">
@@ -332,8 +304,8 @@ const Index = () => {
       <Header 
         onFiltersClick={showPropertiesView ? handleFiltersToggle : undefined}
         activeFilterCount={getActiveFilterCount()}
-        cityContext={showPropertiesView ? `${properties[0]?.city}, ${properties[0]?.state}` : undefined}
-        propertyCount={showPropertiesView ? displayProperties.length : undefined}
+        cityContext={showPropertiesView && filters.city ? filters.city : undefined}
+        propertyCount={showPropertiesView ? properties.length : undefined}
         currentView={currentView}
         onViewToggle={handleViewToggle}
         showViewToggle={showPropertiesView && !isOverloadMode}
@@ -359,12 +331,13 @@ const Index = () => {
         onClose={() => setIsFilterPanelOpen(false)}
         onApply={handleApplyFilters}
         onClear={handleClearFilters}
-        totalProperties={properties.length}
-        previewCount={getPreviewCount(filters)}
+        totalProperties={totalProperties}
+        previewCount={getPreviewCount()}
+        filterCounts={filterCounts}
       />
 
       {/* Active Filters Bar */}
-      {hasActiveFilters && (
+      {hasActiveFilters() && (
         <div className="fixed top-[294px] left-0 right-0 z-30 bg-yellow-100 border-b border-yellow-200 px-6 py-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-yellow-800">
@@ -385,7 +358,7 @@ const Index = () => {
         className="flex" 
         style={{ 
           height: 'calc(100vh - 56px)',
-          marginTop: isFilterPanelOpen ? '280px' : hasActiveFilters ? '36px' : '0'
+          marginTop: isFilterPanelOpen ? '280px' : hasActiveFilters() ? '36px' : '0'
         }}
       >
         {/* Map or Table View */}
@@ -398,7 +371,7 @@ const Index = () => {
               opacity: (isEmptyState && !isLoading) ? 0.25 : 1,
               pointerEvents: (isEmptyState && !isLoading) ? 'none' : 'auto'
             }}
-            properties={showPropertiesView ? displayProperties : []}
+            properties={showPropertiesView ? properties : []}
             selectedProperty={selectedProperty}
             onPropertySelect={handlePropertySelect}
             showPanel={showPropertiesView && !isOverloadMode}
@@ -408,7 +381,7 @@ const Index = () => {
         ) : (
           <div className="flex-1">
             <PropertyTable
-              properties={displayProperties}
+              properties={properties}
               selectedProperty={selectedProperty}
               onPropertySelect={handlePropertySelect}
               selectedProperties={selectedPropertyIds}
@@ -422,10 +395,10 @@ const Index = () => {
           <PropertyPanel 
             property={selectedProperty} 
             onPropertyUpdate={(updatedProperty) => {
-              // Update the property in the properties array
-              setProperties(prev => prev.map(p => p.id === updatedProperty.id ? updatedProperty : p));
-              setFilteredProperties(prev => prev.map(p => p.id === updatedProperty.id ? updatedProperty : p));
+              // Note: Property updates should trigger a refetch of search results
+              // For now, we'll just update the selected property
               setSelectedProperty(updatedProperty);
+              // TODO: Implement proper property update and refetch logic
             }}
           />
         )}

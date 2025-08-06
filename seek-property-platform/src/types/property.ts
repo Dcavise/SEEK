@@ -11,7 +11,8 @@ export interface Property {
   zoning_code: string | null; // VARCHAR(20)
   zoning_by_right: boolean | string | null; // BOOLEAN or VARCHAR(50) for special-exemption
   current_occupancy: string | null; // VARCHAR(50) - E, A, Other
-  fire_sprinkler_status: string | null; // VARCHAR(20) - Yes, No
+  occupancy_class: string | null; // VARCHAR(100) - FOIA data for occupancy classification
+  fire_sprinklers: boolean | null; // BOOLEAN - FOIA data for fire sprinkler presence
   assigned_to: string | null; // UUID (FK)
   status: 'new' | 'reviewing' | 'synced' | 'not_qualified'; // Workflow status
   created_at: string; // TIMESTAMP
@@ -35,7 +36,8 @@ export interface Property {
 
 export interface FilterCriteria {
   zoning_by_right: boolean | string | null;
-  fire_sprinkler_status: string | null;
+  fire_sprinklers: boolean | null; // Updated to match database schema
+  occupancy_class: string | null; // Updated to match database schema 
   current_occupancy: string[];
   min_square_feet: number;
   max_square_feet: number;

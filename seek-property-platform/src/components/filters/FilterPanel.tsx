@@ -2,19 +2,24 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card } from '@/components/ui/card';
-import { Building, GraduationCap, Users, Home } from 'lucide-react';
-import { FilterCriteria } from '@/types/property';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building, GraduationCap, Users, Home, Droplets, Shield } from 'lucide-react';
+import { ExtendedFilterCriteria, FOIAFilters } from '@/lib/propertySearchService';
 
 interface FilterPanelProps {
   isOpen: boolean;
-  filters: FilterCriteria;
-  onFiltersChange: (filters: FilterCriteria) => void;
+  filters: ExtendedFilterCriteria;
+  onFiltersChange: (filters: ExtendedFilterCriteria) => void;
   onClose: () => void;
   onApply: () => void;
   onClear: () => void;
   totalProperties?: number;
   previewCount?: number;
+  filterCounts?: {
+    withFireSprinklers: number;
+    byOccupancyClass: Record<string, number>;
+    byZonedByRight: Record<string, number>;
+  };
 }
 
 export function FilterPanel({ 
@@ -25,30 +30,45 @@ export function FilterPanel({
   onApply, 
   onClear,
   totalProperties = 0,
-  previewCount = 0
+  previewCount = 0,
+  filterCounts
 }: FilterPanelProps) {
+  // Helper to update FOIA filters
+  const updateFOIAFilters = (newFoiaFilters: Partial<FOIAFilters>) => {
+    onFiltersChange({
+      ...filters,
+      foiaFilters: {
+        ...filters.foiaFilters,
+        ...newFoiaFilters
+      }
+    });
+  };
+
   const handleStatusChange = (status: string, checked: boolean) => {
     const newStatus = checked 
-      ? [...filters.status, status]
-      : filters.status.filter(s => s !== status);
+      ? [...(filters.status || []), status]
+      : (filters.status || []).filter(s => s !== status);
     onFiltersChange({ ...filters, status: newStatus });
   };
 
-  const handleZoningChange = (checked: boolean) => {
-    onFiltersChange({ ...filters, zoning_by_right: checked ? true : null });
+  // FOIA Filter Handlers
+  const handleFireSprinklerChange = (value: string | null) => {
+    const boolValue = value === 'true' ? true : value === 'false' ? false : null;
+    updateFOIAFilters({ fire_sprinklers: boolValue });
   };
 
-  const handleSprinklerChange = (status: string, checked: boolean) => {
-    onFiltersChange({ 
-      ...filters, 
-      fire_sprinkler_status: checked ? status : null 
-    });
+  const handleZonedByRightChange = (value: string | null) => {
+    updateFOIAFilters({ zoned_by_right: value });
+  };
+
+  const handleOccupancyClassChange = (value: string | null) => {
+    updateFOIAFilters({ occupancy_class: value });
   };
 
   const handleOccupancyChange = (type: string, checked: boolean) => {
     const newTypes = checked 
-      ? [...filters.current_occupancy, type]
-      : filters.current_occupancy.filter(t => t !== type);
+      ? [...(filters.current_occupancy || []), type]
+      : (filters.current_occupancy || []).filter(t => t !== type);
     onFiltersChange({ ...filters, current_occupancy: newTypes });
   };
 
@@ -98,16 +118,32 @@ export function FilterPanel({
   const isRangeActive = (range: string) => {
     switch (range) {
       case 'under10k':
-        return filters.min_square_feet === 0 && filters.max_square_feet === 10000;
+        return (filters.min_square_feet || 0) === 0 && (filters.max_square_feet || 100000) === 10000;
       case '10k-25k':
-        return filters.min_square_feet === 10000 && filters.max_square_feet === 25000;
+        return (filters.min_square_feet || 0) === 10000 && (filters.max_square_feet || 100000) === 25000;
       case '25k-50k':
-        return filters.min_square_feet === 25000 && filters.max_square_feet === 50000;
+        return (filters.min_square_feet || 0) === 25000 && (filters.max_square_feet || 100000) === 50000;
       case '50k+':
-        return filters.min_square_feet === 50000 && filters.max_square_feet === 100000;
+        return (filters.min_square_feet || 0) === 50000 && (filters.max_square_feet || 100000) === 100000;
       default:
         return false;
     }
+  };
+
+  // Get available occupancy classes from filter counts
+  const getOccupancyClassOptions = () => {
+    if (!filterCounts?.byOccupancyClass) return [];
+    return Object.entries(filterCounts.byOccupancyClass)
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count);
+  };
+
+  // Get available zoning options from filter counts  
+  const getZoningOptions = () => {
+    if (!filterCounts?.byZonedByRight) return [];
+    return Object.entries(filterCounts.byZonedByRight)
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count);
   };
 
   if (!isOpen) return null;
@@ -123,16 +159,15 @@ export function FilterPanel({
             <h3 className="text-sm font-semibold mb-4 text-gray-900">Compliance Status</h3>
             <div className="space-y-2">
               {[
-                { value: 'qualified', label: 'Qualified (all compliant)', color: 'bg-green-500' },
-                { value: 'reviewing', label: 'Needs Review (has unknowns)', color: 'bg-amber-500' },
-                { value: 'unreviewed', label: 'Unreviewed', color: 'bg-gray-500' },
-                { value: 'disqualified', label: 'Disqualified (non-compliant)', color: 'bg-red-500' },
-                { value: 'on_hold', label: 'On Hold', color: 'bg-purple-500' }
+                { value: 'new', label: 'New Properties', color: 'bg-blue-500' },
+                { value: 'reviewing', label: 'Under Review', color: 'bg-amber-500' },
+                { value: 'synced', label: 'Synced to CRM', color: 'bg-green-500' },
+                { value: 'not_qualified', label: 'Not Qualified', color: 'bg-red-500' }
               ].map(({ value, label, color }) => (
                 <label key={value} className="flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors hover:bg-gray-50">
                   <Checkbox
                     id={`status-${value}`}
-                    checked={filters.status.includes(value)}
+                    checked={(filters.status || []).includes(value)}
                     onCheckedChange={(checked) => handleStatusChange(value, checked as boolean)}
                   />
                   <div className={`w-2 h-2 rounded-full ${color}`}></div>
@@ -144,39 +179,81 @@ export function FilterPanel({
             </div>
           </div>
 
-          {/* Column 2 - Compliance Fields */}
+          {/* Column 2 - FOIA Fields */}
           <div>
-            <h3 className="text-sm font-semibold mb-4 text-gray-900">Compliance Fields</h3>
-            <div className="space-y-2">
-              <label className="flex items-start space-x-2 p-2 rounded-md cursor-pointer transition-colors hover:bg-gray-50">
-                <Checkbox
-                  id="zoning-by-right"
-                  checked={filters.zoning_by_right === true}
-                  onCheckedChange={(checked) => handleZoningChange(checked as boolean)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="text-sm text-gray-700">
-                    By-right compliant
-                  </div>
-                  <div className="text-xs text-[#6B7280] mt-1">Permitted use confirmed</div>
-                </div>
-              </label>
-              
-              <label className="flex items-start space-x-2 p-2 rounded-md cursor-pointer transition-colors hover:bg-gray-50">
-                <Checkbox
-                  id="fire-sprinklers-yes"
-                  checked={filters.fire_sprinkler_status === 'Yes'}
-                  onCheckedChange={(checked) => handleSprinklerChange('Yes', checked as boolean)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="text-sm text-gray-700">
-                    Has fire sprinklers
-                  </div>
-                  <div className="text-xs text-[#6B7280] mt-1">System present and functional</div>
-                </div>
-              </label>
+            <h3 className="text-sm font-semibold mb-4 text-gray-900">FOIA Data Filters</h3>
+            <div className="space-y-4">
+              {/* Fire Sprinklers Filter */}
+              <div>
+                <label className="text-sm text-gray-600 mb-2 block flex items-center gap-2">
+                  <Droplets className="h-4 w-4" />
+                  Fire Sprinklers
+                </label>
+                <Select 
+                  value={filters.foiaFilters?.fire_sprinklers === true ? 'true' : 
+                         filters.foiaFilters?.fire_sprinklers === false ? 'false' : 'all'} 
+                  onValueChange={(value) => handleFireSprinklerChange(value === 'all' ? null : value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    <SelectItem value="true">
+                      Has Sprinklers ({filterCounts?.withFireSprinklers || 0})
+                    </SelectItem>
+                    <SelectItem value="false">No Sprinklers</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Zoned By Right Filter */}
+              <div>
+                <label className="text-sm text-gray-600 mb-2 block flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Zoned By Right
+                </label>
+                <Select 
+                  value={filters.foiaFilters?.zoned_by_right || 'all'} 
+                  onValueChange={(value) => handleZonedByRightChange(value === 'all' ? null : value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    {getZoningOptions().map(({ value, count }) => (
+                      <SelectItem key={value} value={value}>
+                        {value} ({count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Occupancy Class Filter */}
+              <div>
+                <label className="text-sm text-gray-600 mb-2 block flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  Occupancy Class
+                </label>
+                <Select 
+                  value={filters.foiaFilters?.occupancy_class || 'all'} 
+                  onValueChange={(value) => handleOccupancyClassChange(value === 'all' ? null : value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    {getOccupancyClassOptions().map(({ value, count }) => (
+                      <SelectItem key={value} value={value}>
+                        {value} ({count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -192,7 +269,7 @@ export function FilterPanel({
                 <label key={value} className="flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors hover:bg-gray-50">
                   <Checkbox
                     id={`type-${value}`}
-                    checked={filters.current_occupancy.includes(value)}
+                    checked={(filters.current_occupancy || []).includes(value)}
                     onCheckedChange={(checked) => handleOccupancyChange(value, checked as boolean)}
                   />
                   {getPropertyTypeIcon(value)}

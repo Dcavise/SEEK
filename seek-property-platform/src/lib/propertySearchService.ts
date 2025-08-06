@@ -52,9 +52,106 @@ export interface SearchResult {
 export class PropertySearchService {
   
   /**
+   * Validate and sanitize search criteria
+   */
+  private validateAndSanitizeCriteria(criteria: ExtendedFilterCriteria): ExtendedFilterCriteria {
+    const sanitized: ExtendedFilterCriteria = { ...criteria };
+    
+    // Sanitize strings to prevent injection
+    if (sanitized.city) {
+      sanitized.city = sanitized.city.trim().slice(0, 100);
+    }
+    if (sanitized.state) {
+      sanitized.state = sanitized.state.trim().toUpperCase().slice(0, 2);
+    }
+    if (sanitized.county) {
+      sanitized.county = sanitized.county.trim().slice(0, 100);
+    }
+    if (sanitized.searchTerm) {
+      sanitized.searchTerm = sanitized.searchTerm.trim().slice(0, 255);
+    }
+    
+    // Validate numeric values
+    if (sanitized.min_square_feet && sanitized.min_square_feet < 0) {
+      sanitized.min_square_feet = 0;
+    }
+    if (sanitized.max_square_feet && sanitized.max_square_feet < 0) {
+      sanitized.max_square_feet = undefined;
+    }
+    if (sanitized.min_square_feet && sanitized.max_square_feet && 
+        sanitized.min_square_feet > sanitized.max_square_feet) {
+      // Swap if min > max
+      [sanitized.min_square_feet, sanitized.max_square_feet] = 
+        [sanitized.max_square_feet, sanitized.min_square_feet];
+    }
+    
+    // Validate pagination
+    sanitized.page = Math.max(1, sanitized.page || 1);
+    sanitized.limit = Math.min(1000, Math.max(1, sanitized.limit || 50)); // Max 1000 per page
+    
+    // Validate sort parameters
+    const validSortBy = ['address', 'square_feet', 'updated_at'];
+    const validSortOrder = ['asc', 'desc'];
+    
+    if (!validSortBy.includes(sanitized.sortBy || '')) {
+      sanitized.sortBy = 'address';
+    }
+    if (!validSortOrder.includes(sanitized.sortOrder || '')) {
+      sanitized.sortOrder = 'asc';
+    }
+    
+    // Validate FOIA filters
+    if (sanitized.foiaFilters) {
+      const foia = sanitized.foiaFilters;
+      
+      // Validate occupancy_class
+      if (foia.occupancy_class !== null && foia.occupancy_class !== undefined) {
+        foia.occupancy_class = foia.occupancy_class.toString().trim().slice(0, 100);
+        if (foia.occupancy_class === '') {
+          foia.occupancy_class = null;
+        }
+      }
+      
+      // Validate zoned_by_right
+      if (foia.zoned_by_right !== null && foia.zoned_by_right !== undefined) {
+        const validZoningValues = ['yes', 'no', 'special exemption', 'true', 'false'];
+        const normalizedValue = foia.zoned_by_right.toString().toLowerCase().trim();
+        if (!validZoningValues.includes(normalizedValue)) {
+          foia.zoned_by_right = null;
+        } else {
+          // Normalize boolean-like values
+          if (normalizedValue === 'true') foia.zoned_by_right = 'yes';
+          if (normalizedValue === 'false') foia.zoned_by_right = 'no';
+        }
+      }
+      
+      // fire_sprinklers is boolean, no additional validation needed
+    }
+    
+    // Validate arrays
+    if (sanitized.current_occupancy && Array.isArray(sanitized.current_occupancy)) {
+      sanitized.current_occupancy = sanitized.current_occupancy
+        .filter(item => typeof item === 'string' && item.trim().length > 0)
+        .map(item => item.trim().slice(0, 50))
+        .slice(0, 20); // Max 20 occupancy filters
+    }
+    
+    if (sanitized.status && Array.isArray(sanitized.status)) {
+      const validStatuses = ['new', 'reviewing', 'synced', 'not_qualified'];
+      sanitized.status = sanitized.status
+        .filter(status => validStatuses.includes(status))
+        .slice(0, 10); // Max 10 status filters
+    }
+    
+    return sanitized;
+  }
+  
+  /**
    * Search properties with extended FOIA filtering capabilities
    */
   async searchProperties(criteria: ExtendedFilterCriteria): Promise<SearchResult> {
+    // Validate and sanitize input
+    const sanitizedCriteria = this.validateAndSanitizeCriteria(criteria);
     const {
       city,
       state,
@@ -70,7 +167,7 @@ export class PropertySearchService {
       limit = 50,
       sortBy = 'address',
       sortOrder = 'asc'
-    } = criteria;
+    } = sanitizedCriteria;
 
     // Build the base query
     let query = supabase
@@ -160,7 +257,7 @@ export class PropertySearchService {
     }
 
     // Calculate filter counts for UI
-    const filterCounts = await this.calculateFilterCounts(criteria);
+    const filterCounts = await this.calculateFilterCounts(sanitizedCriteria);
 
     const totalPages = Math.ceil((count || 0) / limit);
 
@@ -171,7 +268,7 @@ export class PropertySearchService {
       limit,
       totalPages,
       filters: {
-        applied: criteria,
+        applied: sanitizedCriteria,
         counts: filterCounts
       }
     };

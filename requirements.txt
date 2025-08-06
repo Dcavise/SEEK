@@ -1,6 +1,6 @@
 # SEEK Property Platform - Python Dependencies
 # Backend data processing and Supabase integration
-# Status: Phase 2 - FOIA Integration (Task 1.1 Complete, Task 1.2 Next)
+# Status: Phase 2 - FOIA Integration (Tasks 1-2 Complete ✅, Task 3.2 API Complete ✅)
 
 # Core Dependencies
 supabase==2.17.0

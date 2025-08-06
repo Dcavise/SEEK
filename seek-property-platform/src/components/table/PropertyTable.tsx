@@ -56,7 +56,7 @@ interface PropertyTableProps {
   onSelectionChange: (selectedIds: string[]) => void;
 }
 
-type SortField = 'address' | 'type' | 'squareFeet' | 'status' | 'owner' | 'lastModified';
+type SortField = 'address' | 'type' | 'squareFeet' | 'status' | 'owner' | 'lastModified' | 'fire_sprinklers' | 'zoned_by_right' | 'occupancy_class';
 type SortDirection = 'asc' | 'desc';
 
 export function PropertyTable({ 
@@ -162,6 +162,18 @@ export function PropertyTable({
         case 'lastModified':
           aValue = a.updated_at;
           bValue = b.updated_at;
+          break;
+        case 'fire_sprinklers':
+          aValue = a.fire_sprinklers === true ? 'Yes' : a.fire_sprinklers === false ? 'No' : 'Unknown';
+          bValue = b.fire_sprinklers === true ? 'Yes' : b.fire_sprinklers === false ? 'No' : 'Unknown';
+          break;
+        case 'zoned_by_right':
+          aValue = a.zoning_by_right ? (typeof a.zoning_by_right === 'string' ? a.zoning_by_right : 'Yes') : 'Unknown';
+          bValue = b.zoning_by_right ? (typeof b.zoning_by_right === 'string' ? b.zoning_by_right : 'Yes') : 'Unknown';
+          break;
+        case 'occupancy_class':
+          aValue = a.occupancy_class || 'Unknown';
+          bValue = b.occupancy_class || 'Unknown';
           break;
         default:
           return 0;
@@ -511,6 +523,37 @@ export function PropertyTable({
                   {getSortIcon('lastModified')}
                 </Button>
               </TableHead>
+              {/* FOIA Data Columns */}
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('fire_sprinklers')}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Fire Sprinklers
+                  {getSortIcon('fire_sprinklers')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('zoned_by_right')}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Zoned By Right
+                  {getSortIcon('zoned_by_right')}
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('occupancy_class')}
+                  className="h-auto p-0 font-semibold hover:bg-transparent"
+                >
+                  Occupancy Class
+                  {getSortIcon('occupancy_class')}
+                </Button>
+              </TableHead>
               <TableHead className="w-12">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -558,6 +601,34 @@ export function PropertyTable({
                 </TableCell>
                 <TableCell>
                   {new Date(property.updated_at).toLocaleDateString()}
+                </TableCell>
+                {/* FOIA Data Cells */}
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {property.fire_sprinklers === true ? (
+                      <Badge variant="default" className="bg-green-100 text-green-800">Yes</Badge>
+                    ) : property.fire_sprinklers === false ? (
+                      <Badge variant="outline" className="text-red-600">No</Badge>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Unknown</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {property.zoning_by_right ? (
+                    <Badge variant="default" className="bg-blue-100 text-blue-800">
+                      {typeof property.zoning_by_right === 'string' ? property.zoning_by_right : 'Yes'}
+                    </Badge>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Unknown</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {property.occupancy_class ? (
+                    <Badge variant="outline">{property.occupancy_class}</Badge>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Unknown</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
