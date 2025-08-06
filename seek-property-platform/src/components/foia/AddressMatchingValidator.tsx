@@ -5,7 +5,7 @@ import {
   FileText,
   Download
 } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
 import {
   Alert,
@@ -205,77 +205,119 @@ export const AddressMatchingValidator: React.FC<AddressMatchingValidatorProps> =
   const [validationSummary, setValidationSummary] = useState<AddressValidationSummary | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [progress, setProgress] = useState(0);
-
-  // Run address validation
+  
+  // React 18.3 Strict Mode: Track component mount status
+  const isMountedRef = useRef(true);
+  const validationControllerRef = useRef<AbortController | null>(null);
+  
+  // Cleanup on unmount
   useEffect(() => {
-    if (data && data.length > 0 && addressColumn) {
-      setIsValidating(true);
-      setProgress(0);
+    return () => {
+      isMountedRef.current = false;
+      if (validationControllerRef.current) {
+        validationControllerRef.current.abort();
+      }
+    };
+  }, []);
 
-      // Run validation in batches to avoid blocking UI
-      setTimeout(async () => {
-        const results: AddressMatchResult[] = [];
-        let exactMatches = 0;
-        let potentialMatches = 0;
-        let noMatches = 0;
-        let invalidAddresses = 0;
+  // React 18.3 Strict Mode: Fixed validation effect with proper cleanup
+  useEffect(() => {
+    if (!data || data.length === 0 || !addressColumn) {
+      return;
+    }
 
-        for (let i = 0; i < data.length; i++) {
-          const record = data[i];
-          const sourceAddress = record[addressColumn] || '';
-          
-          // Update progress
+    // Create new AbortController for this validation run
+    const controller = new AbortController();
+    validationControllerRef.current = controller;
+    let timeoutId: NodeJS.Timeout;
+    let isCancelled = false;
+
+    const runValidation = async () => {
+      if (isCancelled || controller.signal.aborted || !isMountedRef.current) return;
+      
+      const results: AddressMatchResult[] = [];
+      let exactMatches = 0;
+      let potentialMatches = 0;
+      let noMatches = 0;
+      let invalidAddresses = 0;
+
+      for (let i = 0; i < data.length; i++) {
+        // Check for cancellation before each iteration
+        if (isCancelled || controller.signal.aborted || !isMountedRef.current) {
+          return;
+        }
+
+        const record = data[i];
+        const sourceAddress = record[addressColumn] || '';
+        
+        // Update progress only if not cancelled
+        if (isMountedRef.current) {
           setProgress(((i + 1) / data.length) * 100);
+        }
 
-          // Validate address format
-          const isValidFormat = validateAddressFormat(sourceAddress);
-          
-          if (!isValidFormat) {
-            invalidAddresses++;
-            results.push({
-              sourceAddress,
-              rowIndex: i,
-              matchStatus: 'invalid_address',
-              confidence: 0,
-              normalizedAddress: ''
-            });
-            continue;
-          }
-
-          // Normalize address
-          const normalizedAddress = normalizeAddress(sourceAddress);
-          
-          // Attempt to match address
-          const matchResult = mockAddressMatch(normalizedAddress);
-          
-          let matchStatus: AddressMatchResult['matchStatus'];
-          if (matchResult.matchType === 'exact') {
-            matchStatus = 'exact_match';
-            exactMatches++;
-          } else if (matchResult.matchType === 'potential') {
-            matchStatus = 'potential_match';
-            potentialMatches++;
-          } else {
-            matchStatus = 'no_match';
-            noMatches++;
-          }
-
+        // Validate address format
+        const isValidFormat = validateAddressFormat(sourceAddress);
+        
+        if (!isValidFormat) {
+          invalidAddresses++;
           results.push({
             sourceAddress,
             rowIndex: i,
-            matchStatus,
-            matchedParcelId: matchResult.parcelId,
-            matchedAddress: matchResult.matchedAddress,
-            confidence: matchResult.confidence,
-            normalizedAddress
+            matchStatus: 'invalid_address',
+            confidence: 0,
+            normalizedAddress: ''
           });
-
-          // Small delay to allow UI updates
-          if (i % 10 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1));
-          }
+          continue;
         }
 
+        // Normalize address
+        const normalizedAddress = normalizeAddress(sourceAddress);
+        
+        // Attempt to match address
+        const matchResult = mockAddressMatch(normalizedAddress);
+        
+        let matchStatus: AddressMatchResult['matchStatus'];
+        if (matchResult.matchType === 'exact') {
+          matchStatus = 'exact_match';
+          exactMatches++;
+        } else if (matchResult.matchType === 'potential') {
+          matchStatus = 'potential_match';
+          potentialMatches++;
+        } else {
+          matchStatus = 'no_match';
+          noMatches++;
+        }
+
+        results.push({
+          sourceAddress,
+          rowIndex: i,
+          matchStatus,
+          matchedParcelId: matchResult.parcelId,
+          matchedAddress: matchResult.matchedAddress,
+          confidence: matchResult.confidence,
+          normalizedAddress
+        });
+
+        // Small delay to allow UI updates with proper cleanup
+        if (i % 10 === 0) {
+          await new Promise<void>((resolve) => {
+            const delayId = setTimeout(() => {
+              if (!isCancelled && !controller.signal.aborted) {
+                resolve();
+              }
+            }, 1);
+            
+            // Cleanup timeout if cancelled
+            if (isCancelled || controller.signal.aborted) {
+              clearTimeout(delayId);
+              resolve();
+            }
+          });
+        }
+      }
+
+      // Only update state if component is still mounted and not cancelled
+      if (!isCancelled && !controller.signal.aborted && isMountedRef.current) {
         const totalAddresses = data.length;
         const matchRate = totalAddresses > 0 ? ((exactMatches + potentialMatches) / totalAddresses) * 100 : 0;
 
@@ -296,8 +338,33 @@ export const AddressMatchingValidator: React.FC<AddressMatchingValidatorProps> =
         if (onValidationComplete) {
           onValidationComplete(summary);
         }
+      }
+    };
+
+    // Start validation with proper state management
+    if (isMountedRef.current) {
+      setIsValidating(true);
+      setProgress(0);
+      
+      timeoutId = setTimeout(() => {
+        if (!isCancelled && !controller.signal.aborted) {
+          runValidation();
+        }
       }, 100);
     }
+
+    // React 18.3 Strict Mode: Proper cleanup function
+    return () => {
+      isCancelled = true;
+      controller.abort();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      // Reset validation controller reference
+      if (validationControllerRef.current === controller) {
+        validationControllerRef.current = null;
+      }
+    };
   }, [data, addressColumn, onValidationComplete]);
 
   const getStatusBadge = (status: AddressMatchResult['matchStatus'], confidence: number) => {
@@ -315,31 +382,57 @@ export const AddressMatchingValidator: React.FC<AddressMatchingValidatorProps> =
     }
   };
 
-  const exportResults = () => {
-    if (!validationSummary) return;
+  // React 18.3 Strict Mode: Fixed export with proper cleanup
+  const exportResults = useCallback(() => {
+    if (!validationSummary || !isMountedRef.current) return;
 
-    const csvContent = [
-      ['Row', 'Source Address', 'Status', 'Confidence', 'Matched Address', 'Parcel ID'].join(','),
-      ...validationSummary.results.map(result => [
-        result.rowIndex + 1,
-        `"${result.sourceAddress}"`,
-        result.matchStatus,
-        result.confidence,
-        `"${result.matchedAddress || ''}"`,
-        result.matchedParcelId || ''
-      ].join(','))
-    ].join('\n');
+    try {
+      const csvContent = [
+        ['Row', 'Source Address', 'Status', 'Confidence', 'Matched Address', 'Parcel ID'].join(','),
+        ...validationSummary.results.map(result => [
+          result.rowIndex + 1,
+          `"${result.sourceAddress}"`,
+          result.matchStatus,
+          result.confidence,
+          `"${result.matchedAddress || ''}"`,
+          result.matchedParcelId || ''
+        ].join(','))
+      ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'address-matching-results.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'address-matching-results.csv';
+      a.style.display = 'none';
+      
+      try {
+        document.body.appendChild(a);
+        a.click();
+      } finally {
+        // Proper cleanup with error handling
+        setTimeout(() => {
+          try {
+            if (document.body.contains(a)) {
+              document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+          } catch (cleanupError) {
+            console.warn('Export cleanup warning:', cleanupError);
+            // Still attempt to revoke URL even if DOM cleanup fails
+            try {
+              URL.revokeObjectURL(url);
+            } catch (urlError) {
+              console.warn('URL revocation failed:', urlError);
+            }
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  }, [validationSummary]);
 
   if (isValidating) {
     return (
@@ -396,6 +489,7 @@ export const AddressMatchingValidator: React.FC<AddressMatchingValidatorProps> =
                 variant="outline"
                 size="sm"
                 onClick={exportResults}
+                disabled={!validationSummary || isValidating}
                 className="flex items-center space-x-1"
               >
                 <Download className="h-4 w-4" />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useDeferredValue } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -13,12 +13,16 @@ export function useCitySearch(query: string) {
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 🚀 React 18.3: Defer expensive search operations while keeping input responsive
+  const deferredQuery = useDeferredValue(query);
+  const isStale = query !== deferredQuery;
 
   useEffect(() => {
     let isMounted = true;
 
     const searchCities = async () => {
-      if (!query.trim() || query.length < 2) {
+      if (!deferredQuery.trim() || deferredQuery.length < 2) {
         setCities([]);
         setLoading(false);
         return;
@@ -33,7 +37,7 @@ export function useCitySearch(query: string) {
         const { data, error: searchError } = await supabase
           .from('cities')
           .select('id, name, state, county')
-          .or(`name.ilike.%${query}%`)
+          .or(`name.ilike.%${deferredQuery}%`) // Use deferred query for actual search
           .order('state', { ascending: false }) // TX comes after most states alphabetically
           .order('name', { ascending: true })
           .limit(10);
@@ -63,7 +67,7 @@ export function useCitySearch(query: string) {
       clearTimeout(timeoutId);
       isMounted = false;
     };
-  }, [query]);
+  }, [deferredQuery]); // Use deferredQuery in dependency array
 
-  return { cities, loading, error };
+  return { cities, loading, error, isStale };
 }

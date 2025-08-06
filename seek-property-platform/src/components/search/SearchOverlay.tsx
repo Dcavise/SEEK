@@ -1,5 +1,5 @@
 import { MapPin, Building, ArrowLeft, Search, Loader2 } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,11 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  // Use the database city search hook
-  const { cities, loading, error } = useCitySearch(searchQuery);
+  // 🚀 React 18.3: useTransition for non-blocking view transitions
+  const [isPending, startTransition] = useTransition();
+  
+  // Use the database city search hook with concurrent features
+  const { cities, loading, error, isStale } = useCitySearch(searchQuery);
   const showDropdown = searchQuery.length >= 2 && (cities.length > 0 || loading);
 
   // Auto-focus search input when city search view is shown
@@ -30,17 +33,24 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
   }, [currentView]);
 
   const handleCitySearchStart = () => {
-    setCurrentView('city-search');
+    // 🚀 Use transition for smooth view changes
+    startTransition(() => {
+      setCurrentView('city-search');
+    });
   };
 
   const handleAddressSearchStart = () => {
-    setCurrentView('address-search');
+    startTransition(() => {
+      setCurrentView('address-search');
+    });
     onAddressSearchClick();
   };
 
   const handleBackToInitial = () => {
-    setCurrentView('initial');
-    setSearchQuery('');
+    startTransition(() => {
+      setCurrentView('initial');
+      setSearchQuery('');
+    });
   };
 
   const handleCitySelection = (cityName: string, state: string) => {
@@ -73,7 +83,7 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-      <div className="w-[420px] bg-white rounded-lg shadow-xl p-8 animate-fade-in">
+      <div className={`w-[420px] bg-white rounded-lg shadow-xl p-8 animate-fade-in transition-opacity duration-200 ${isPending ? 'opacity-90' : 'opacity-100'}`}>
         
         {/* Initial View - Two Cards */}
         {currentView === 'initial' && (
@@ -142,13 +152,23 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
                   placeholder="Enter city name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className={`pl-10 transition-all duration-200 ${
+                    isStale ? 'ring-2 ring-yellow-200 bg-yellow-50' : ''
+                  }`}
                 />
+                {/* 🚀 React 18.3: Stale content indicator */}
+                {isStale && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
+                  </div>
+                )}
               </div>
 
               {/* Autocomplete Dropdown */}
               {showDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 animate-fade-in">
+                <div className={`absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 animate-fade-in transition-opacity duration-200 ${
+                  isStale ? 'opacity-60' : 'opacity-100'
+                }`}>
                   {loading && (
                     <div className="px-4 py-3 flex items-center gap-3 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useDeferredValue, useTransition } from 'react';
 
 import { propertySearchService, type ExtendedFilterCriteria, type SearchResult } from '@/lib/propertySearchService';
 import type { Property } from '@/types/property';
@@ -22,6 +22,10 @@ export interface UsePropertySearchReturn {
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
+  
+  // Concurrent features
+  isStale: boolean;
+  isPending: boolean;
   
   // Pagination
   currentPage: number;
@@ -60,8 +64,15 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
   } = options;
 
   const [searchCriteria, setSearchCriteria] = useState<ExtendedFilterCriteria>(defaultSearchCriteria);
+  
+  // 🚀 React 18.3 Concurrent Features
+  const deferredSearchCriteria = useDeferredValue(searchCriteria);
+  const [isPending, startTransition] = useTransition();
+  
+  // Check if current search is stale (user typed faster than deferred updates)
+  const isStale = searchCriteria !== deferredSearchCriteria;
 
-  // Main search query
+  // Main search query using deferred criteria for better performance
   const {
     data,
     isLoading,
@@ -69,33 +80,38 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
     error,
     refetch
   } = useQuery({
-    queryKey: ['propertySearch', searchCriteria],
-    queryFn: () => propertySearchService.searchProperties(searchCriteria),
-    enabled: enabled && (!!searchCriteria.city || !!searchCriteria.searchTerm || !!searchCriteria.foiaFilters),
+    queryKey: ['propertySearch', deferredSearchCriteria], // Use deferred value
+    queryFn: () => propertySearchService.searchProperties(deferredSearchCriteria),
+    enabled: enabled && (!!deferredSearchCriteria.city || !!deferredSearchCriteria.searchTerm || !!deferredSearchCriteria.foiaFilters),
     refetchOnWindowFocus,
     staleTime,
     retry: 2,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
-  // Update search criteria
+  // Update search criteria with transitions for non-blocking updates
   const updateSearchCriteria = useCallback((newCriteria: Partial<ExtendedFilterCriteria>) => {
-    setSearchCriteria(prev => ({
-      ...prev,
-      ...newCriteria,
-      // Reset to page 1 when filters change (except when explicitly setting page)
-      page: newCriteria.page !== undefined ? newCriteria.page : 1
-    }));
-  }, []);
-
-  // Clear all filters
-  const clearFilters = useCallback(() => {
-    setSearchCriteria({
-      ...defaultSearchCriteria,
-      city: searchCriteria.city, // Preserve city search
-      searchTerm: searchCriteria.searchTerm // Preserve search term
+    // 🚀 Use startTransition for non-urgent updates to prevent UI blocking
+    startTransition(() => {
+      setSearchCriteria(prev => ({
+        ...prev,
+        ...newCriteria,
+        // Reset to page 1 when filters change (except when explicitly setting page)
+        page: newCriteria.page !== undefined ? newCriteria.page : 1
+      }));
     });
-  }, [searchCriteria.city, searchCriteria.searchTerm]);
+  }, [startTransition]);
+
+  // Clear all filters with transition
+  const clearFilters = useCallback(() => {
+    startTransition(() => {
+      setSearchCriteria({
+        ...defaultSearchCriteria,
+        city: searchCriteria.city, // Preserve city search
+        searchTerm: searchCriteria.searchTerm // Preserve search term
+      });
+    });
+  }, [searchCriteria.city, searchCriteria.searchTerm, startTransition]);
 
   // Trigger search manually
   const searchProperties = useCallback(() => {
@@ -127,6 +143,10 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
     isLoading,
     isError,
     error: error as Error | null,
+    
+    // 🚀 React 18.3 Concurrent Features
+    isStale,
+    isPending,
     
     // Pagination
     currentPage: data?.page || 1,

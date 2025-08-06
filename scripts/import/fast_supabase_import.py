@@ -14,11 +14,18 @@ import os
 import sys
 import pandas as pd
 import time
+import asyncio
+import concurrent.futures
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 from supabase import create_client, Client
+try:
+    from supabase.lib.client_options import ClientOptions
+except ImportError:
+    # Fallback for older versions
+    ClientOptions = None
 
 # Load environment variables
 load_dotenv()
@@ -30,8 +37,10 @@ class FastSupabaseImporter:
         self.csv_file_path = Path(csv_file_path)
         self.supabase = self._create_supabase_client()
         
-        # Optimized configuration for bulk operations
-        self.batch_size = 10000  # Much larger batches
+        # Enhanced configuration for v2.17+ optimizations
+        self.batch_size = 5000   # Reduced for better memory management
+        self.chunk_size = 2500   # Optimal chunk size for v2.17+
+        self.max_workers = 4     # Parallel processing
         self.max_retries = 3
         
         # Statistics tracking
@@ -52,7 +61,7 @@ class FastSupabaseImporter:
         self.cities_cache = {}
         
     def _create_supabase_client(self) -> Client:
-        """Create Supabase client with service key for admin access."""
+        """Create Supabase client with v2.17+ performance optimizations."""
         url = os.environ.get('SUPABASE_URL')
         service_key = os.environ.get('SUPABASE_SERVICE_KEY')
         
@@ -64,7 +73,19 @@ class FastSupabaseImporter:
             print("❌ SUPABASE_URL not found in environment variables")
             sys.exit(1)
             
-        print(f"🔗 Connecting to Supabase...")
+        print(f"🔗 Connecting to Supabase with v2.17+ optimizations...")
+        
+        # Enhanced client options for v2.17+ performance (if available)
+        if ClientOptions:
+            try:
+                options = ClientOptions(
+                    postgrest={"pool": {"max_size": 20, "timeout": 30}}
+                )
+                return create_client(url, service_key, options=options)
+            except Exception:
+                # Fallback to basic client if options fail
+                pass
+        
         return create_client(url, service_key)
     
     def ensure_texas_state(self) -> str:
@@ -73,8 +94,8 @@ class FastSupabaseImporter:
             return self.texas_state_id
             
         try:
-            # Try to find existing Texas state
-            result = self.supabase.table('states').select('id').eq('code', 'TX').execute()
+            # Try to find existing Texas state (optimized query)
+            result = self.supabase.table('states').select('id').eq('code', 'TX').limit(1).execute()
             
             if result.data:
                 self.texas_state_id = result.data[0]['id']
@@ -110,8 +131,8 @@ class FastSupabaseImporter:
             return self.county_id
             
         try:
-            # Try to find existing county
-            result = self.supabase.table('counties').select('id').eq('name', county_name).eq('state_id', state_id).execute()
+            # Try to find existing county (optimized query)
+            result = self.supabase.table('counties').select('id').eq('name', county_name).eq('state_id', state_id).limit(1).execute()
             
             if result.data:
                 self.county_id = result.data[0]['id']
@@ -175,30 +196,58 @@ class FastSupabaseImporter:
             raise
     
     def bulk_upsert_parcels(self, parcel_records: List[Dict]) -> bool:
-        """Insert parcels using bulk upsert with retry logic."""
-        for attempt in range(self.max_retries):
-            try:
-                # Use upsert for better performance and conflict handling
-                result = self.supabase.table('parcels').upsert(
-                    parcel_records,
-                    on_conflict='parcel_number,county_id'  # Handle duplicates
-                ).execute()
-                
-                self.stats['parcels_created'] += len(parcel_records)
-                return True
-                
-            except Exception as e:
-                error_msg = str(e)
-                print(f"    ⚠️  Bulk upsert attempt {attempt + 1} failed: {error_msg[:100]}...")
-                
-                if attempt < self.max_retries - 1:
-                    time.sleep(2.0 * (attempt + 1))  # Exponential backoff
-                else:
-                    print(f"    ❌ Failed to upsert batch after {self.max_retries} attempts")
-                    self.stats['errors'] += len(parcel_records)
-                    return False
+        """Legacy method - redirects to optimized version."""
+        return self.bulk_upsert_parcels_optimized(parcel_records)
+    
+    def bulk_upsert_parcels_optimized(self, parcel_records: List[Dict]) -> bool:
+        """Optimized parcels upsert using v2.17+ chunking and count optimization."""
+        total_inserted = 0
         
-        return False
+        # Process in optimal chunks for v2.17+
+        for i in range(0, len(parcel_records), self.chunk_size):
+            chunk = parcel_records[i:i + self.chunk_size]
+            
+            for attempt in range(self.max_retries):
+                try:
+                    # Enhanced upsert with count optimization
+                    result = self.supabase.table('parcels').upsert(
+                        chunk,
+                        on_conflict='parcel_number,county_id',
+                        count='exact'  # Get accurate count without fetching data
+                    ).execute()
+                    
+                    # Handle different response formats
+                    chunk_count = getattr(result, 'count', len(chunk))
+                    if chunk_count is None:
+                        chunk_count = len(chunk)
+                    total_inserted += chunk_count
+                    break  # Success, move to next chunk
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    # Remove count parameter if not supported
+                    if 'count' in str(e) and 'exact' in str(e):
+                        try:
+                            result = self.supabase.table('parcels').upsert(
+                                chunk,
+                                on_conflict='parcel_number,county_id'
+                            ).execute()
+                            total_inserted += len(chunk)
+                            break
+                        except Exception:
+                            pass
+                    
+                    print(f"    ⚠️  Chunk upsert attempt {attempt + 1} failed: {error_msg[:100]}...")
+                    
+                    if attempt < self.max_retries - 1:
+                        time.sleep(1.0 * (attempt + 1))  # Reduced backoff for chunks
+                    else:
+                        print(f"    ❌ Failed to upsert chunk after {self.max_retries} attempts")
+                        self.stats['errors'] += len(chunk)
+                        return False
+        
+        self.stats['parcels_created'] += total_inserted
+        return True
     
     def process_parcel_batch(self, df_batch: pd.DataFrame, county_id: str, state_id: str, cities_map: Dict[str, str]) -> List[Dict]:
         """Process a batch of DataFrame rows into parcel records."""
@@ -269,12 +318,30 @@ class FastSupabaseImporter:
                     continue
         return None
     
+    def process_single_batch_parallel(self, batch_df: pd.DataFrame, county_id: str, state_id: str, cities_map: Dict[str, str]) -> tuple:
+        """Process a single batch for parallel execution."""
+        try:
+            parcel_records = self.process_parcel_batch(batch_df, county_id, state_id, cities_map)
+            
+            if parcel_records:
+                batch_start = time.time()
+                success = self.bulk_upsert_parcels_optimized(parcel_records)
+                batch_time = time.time() - batch_start
+                return success, len(parcel_records), batch_time
+            
+            return True, 0, 0.0
+        except Exception as e:
+            print(f"    ❌ Batch processing error: {e}")
+            return False, 0, 0.0
+    
     def run_import(self):
-        """Main import process using optimized Supabase bulk operations."""
-        print("🚀 SEEK Fast Supabase Import - Bulk Operations")
+        """Main import process using v2.17+ optimized Supabase operations."""
+        print("🚀 SEEK Fast Supabase Import - v2.17+ Optimized")
         print("=" * 60)
         print(f"📁 File: {self.csv_file_path}")
         print(f"📊 Batch Size: {self.batch_size:,} records")
+        print(f"🔧 Chunk Size: {self.chunk_size:,} records")
+        print(f"⚡ Max Workers: {self.max_workers}")
         print("=" * 60)
         
         if not self.csv_file_path.exists():
@@ -315,42 +382,57 @@ class FastSupabaseImporter:
             # Bulk create all cities
             cities_map = self.bulk_create_cities(unique_cities, county_id, state_id)
             
-            # Process parcels in large batches
-            print(f"\n📦 Processing {len(df):,} records in batches of {self.batch_size:,}...")
+            # Process parcels with parallel processing for maximum performance
+            print(f"\n📦 Processing {len(df):,} records with parallel processing...")
+            print(f"⚡ Using {self.max_workers} parallel workers")
             
             start_time = time.time()
             last_progress_time = start_time
             
+            # Prepare batches for parallel processing
+            batches = []
             for i in range(0, len(df), self.batch_size):
                 batch_df = df.iloc[i:i + self.batch_size].copy()
-                batch_num = (i // self.batch_size) + 1
-                total_batches = (len(df) + self.batch_size - 1) // self.batch_size
+                batches.append(batch_df)
+            
+            total_batches = len(batches)
+            print(f"📊 Created {total_batches} batches for parallel processing")
+            
+            # Process batches in parallel using ThreadPoolExecutor
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                # Submit all batch processing tasks
+                future_to_batch = {
+                    executor.submit(self.process_single_batch_parallel, batch_df, county_id, state_id, cities_map): i
+                    for i, batch_df in enumerate(batches)
+                }
                 
-                print(f"\n📦 Processing batch {batch_num}/{total_batches} ({len(batch_df):,} records)...")
-                
-                # Convert DataFrame batch to parcel records
-                parcel_records = self.process_parcel_batch(batch_df, county_id, state_id, cities_map)
-                
-                print(f"  📝 Prepared {len(parcel_records):,} valid records")
-                
-                # Bulk upsert the batch
-                if parcel_records:
-                    batch_start = time.time()
-                    success = self.bulk_upsert_parcels(parcel_records)
-                    batch_time = time.time() - batch_start
+                # Process completed batches as they finish
+                for future in concurrent.futures.as_completed(future_to_batch):
+                    batch_index = future_to_batch[future]
+                    batch_num = batch_index + 1
                     
-                    if success:
-                        rate = len(parcel_records) / batch_time if batch_time > 0 else 0
-                        print(f"  ⚡ Batch completed: {len(parcel_records):,} records in {batch_time:.1f}s ({rate:.0f} records/sec)")
-                    
-                self.stats['records_processed'] += len(batch_df)
-                self.stats['batches_processed'] += 1
-                
-                # Progress update every 30 seconds
-                current_time = time.time()
-                if current_time - last_progress_time >= 30:
-                    self._print_progress_update()
-                    last_progress_time = current_time
+                    try:
+                        success, records_count, batch_time = future.result()
+                        
+                        if success and records_count > 0:
+                            rate = records_count / batch_time if batch_time > 0 else 0
+                            chunks_processed = (records_count + self.chunk_size - 1) // self.chunk_size
+                            print(f"  ⚡ Batch {batch_num}/{total_batches} completed: {records_count:,} records in {chunks_processed} chunks, {batch_time:.1f}s ({rate:.0f} records/sec)")
+                        elif success:
+                            print(f"  📝 Batch {batch_num}/{total_batches} completed: 0 valid records")
+                        
+                        self.stats['records_processed'] += len(batches[batch_index])
+                        self.stats['batches_processed'] += 1
+                        
+                        # Progress update every few batches
+                        current_time = time.time()
+                        if current_time - last_progress_time >= 15:  # More frequent updates for parallel processing
+                            self._print_progress_update()
+                            last_progress_time = current_time
+                            
+                    except Exception as exc:
+                        print(f"❌ Batch {batch_num} failed: {exc}")
+                        self.stats['errors'] += len(batches[batch_index])
             
             # Final statistics
             self._print_final_stats()
@@ -392,15 +474,19 @@ class FastSupabaseImporter:
         print(f"📈 Average rate: {avg_rate:.0f} records/second")
         print("=" * 60)
         
-        # Performance assessment
-        if avg_rate >= 1000:
-            print("🚀 EXCELLENT: High-performance achieved!")
+        # Enhanced performance assessment for v2.17+ optimizations
+        if avg_rate >= 6000:
+            print("🚀 OUTSTANDING: v2.17+ optimizations working perfectly!")
+        elif avg_rate >= 4000:
+            print("🚀 EXCELLENT: High-performance achieved with v2.17+ features!")
+        elif avg_rate >= 2000:
+            print("✅ VERY GOOD: Great performance with parallel processing!")
+        elif avg_rate >= 1000:
+            print("✅ GOOD: Chunking optimization working well!")
         elif avg_rate >= 500:
-            print("✅ VERY GOOD: Great performance!")
-        elif avg_rate >= 100:
-            print("✅ GOOD: Significant improvement over individual inserts!")
+            print("⚠️  MODERATE: Some optimizations may not be fully utilized")
         else:
-            print("⚠️  Performance could be better - may need direct PostgreSQL connection")
+            print("⚠️  SLOW: Check network connection and Supabase instance performance")
 
 def main():
     """Main entry point."""
