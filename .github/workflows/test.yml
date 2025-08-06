@@ -1,0 +1,135 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-python:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12, 3.13]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run code quality checks
+      run: |
+        ruff check .
+        black . --check
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ -v --cov=src --cov-report=xml
+    
+    - name: Run integration tests (if environment available)
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        if [ -n "$SUPABASE_URL" ]; then
+          pytest tests/integration/ -v --maxfail=3
+        else
+          echo "Skipping integration tests - no database credentials"
+        fi
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: seek-property-platform/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd seek-property-platform
+        npm ci
+    
+    - name: Run frontend linting
+      run: |
+        cd seek-property-platform
+        npm run lint
+    
+    - name: Run frontend type checking
+      run: |
+        cd seek-property-platform
+        npm run type-check
+    
+    - name: Build frontend
+      run: |
+        cd seek-property-platform
+        npm run build
+    
+    - name: Run frontend tests (when available)
+      run: |
+        cd seek-property-platform
+        # npm test -- --coverage --watchAll=false
+        echo "Frontend tests not yet implemented"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Python security scan
+      run: |
+        pip install bandit safety
+        bandit -r src/ -f json -o bandit-report.json || true
+        safety check --json --output safety-report.json || true
+    
+    - name: Run frontend security scan
+      run: |
+        cd seek-property-platform
+        npm audit --audit-level=high || true
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check for dependency updates
+      run: |
+        pip install pip-tools
+        pip-compile --upgrade --dry-run requirements.in > requirements-updates.txt || true
+        
+    - name: Check Node.js dependencies
+      run: |
+        cd seek-property-platform
+        npx npm-check-updates --errorLevel 2 || true

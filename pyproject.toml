@@ -1,0 +1,46 @@
+# pyproject.toml - Python project configuration
+[tool.ruff]
+line-length = 120
+exclude = ["venv", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "S", "B", "A", "C4", "PT", "RET"]
+ignore = ["E501", "S608"]  # Allow string formatting in SQL (we use psycopg2 parameterization)
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["S101"]  # Allow assert in tests
+"tests/**/*.py" = ["S101"]  # Allow assert in tests
+"src/utils/database.py" = ["S608"]  # Allow string formatting in SQL utility
+
+[tool.black]
+line-length = 120
+exclude = '''
+/(
+    \.git
+  | venv
+  | data
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",                     # Verbose output
+    "--tb=short",            # Short traceback format  
+    "--strict-markers",      # Require markers to be defined
+    "--disable-warnings",    # Reduce noise from warnings
+    "--color=yes"           # Colored output
+]
+markers = [
+    "unit: Unit tests that don't require external dependencies",
+    "integration: Integration tests that require database access", 
+    "performance: Performance and benchmark tests",
+    "slow: Tests that take longer than 1 second"
+]
+# Configure test discovery
+python_paths = ["."]
+# Minimum test coverage (optional)
+# --cov=src --cov-report=term-missing --cov-fail-under=80

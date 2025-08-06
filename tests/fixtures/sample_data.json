@@ -1,0 +1,235 @@
+{
+  "fort_worth_foia_data": [
+    {
+      "address": "1261 W GREEN OAKS BLVD",
+      "fire_sprinklers": "YES",
+      "zoned_by_right": "yes", 
+      "occupancy_class": "A-2",
+      "permit_date": "2023-01-15",
+      "expected_match": {
+        "confidence": 0.95,
+        "match_type": "high_confidence"
+      }
+    },
+    {
+      "address": "3909 HULEN ST",
+      "fire_sprinklers": "NO",
+      "zoned_by_right": "no",
+      "occupancy_class": "B-1", 
+      "permit_date": "2023-02-20",
+      "expected_match": {
+        "confidence": 0.90,
+        "match_type": "high_confidence"
+      }
+    },
+    {
+      "address": "6824 KIRK DR",
+      "fire_sprinklers": "YES", 
+      "zoned_by_right": "special exemption",
+      "occupancy_class": "A-3",
+      "permit_date": "2023-03-10",
+      "expected_match": {
+        "confidence": 0.88,
+        "match_type": "high_confidence"
+      }
+    },
+    {
+      "address": "100 FORT WORTH TRL",
+      "fire_sprinklers": "YES",
+      "zoned_by_right": "yes",
+      "occupancy_class": "B-2",
+      "permit_date": "2023-04-05",
+      "expected_match": {
+        "confidence": 0.92,
+        "match_type": "high_confidence"
+      }
+    }
+  ],
+  
+  "texas_coordinates": [
+    {
+      "city": "Houston",
+      "latitude": 29.7604,
+      "longitude": -95.3698,
+      "valid": true
+    },
+    {
+      "city": "Dallas", 
+      "latitude": 32.7767,
+      "longitude": -96.7970,
+      "valid": true
+    },
+    {
+      "city": "Austin",
+      "latitude": 30.2672,
+      "longitude": -97.7431,
+      "valid": true
+    },
+    {
+      "city": "San Antonio",
+      "latitude": 29.4241,
+      "longitude": -98.4936,
+      "valid": true
+    },
+    {
+      "city": "Fort Worth",
+      "latitude": 32.7555,
+      "longitude": -97.3308,
+      "valid": true
+    },
+    {
+      "city": "New York (Invalid)",
+      "latitude": 40.7128,
+      "longitude": -74.0060,
+      "valid": false
+    },
+    {
+      "city": "Los Angeles (Invalid)",
+      "latitude": 34.0522,
+      "longitude": -118.2437,
+      "valid": false
+    }
+  ],
+  
+  "address_normalization_tests": [
+    {
+      "input": "123 Main St",
+      "expected": "123 MAIN STREET",
+      "description": "Basic street type expansion"
+    },
+    {
+      "input": "456 Oak Ave Suite 100", 
+      "expected": "456 OAK AVENUE",
+      "description": "Suite removal and abbreviation expansion"
+    },
+    {
+      "input": "789 N Pine Dr",
+      "expected": "789 NORTH PINE DRIVE", 
+      "description": "Directional and street type expansion"
+    },
+    {
+      "input": "  321   Elm   Ct   Apt  5B  ",
+      "expected": "321 ELM COURT",
+      "description": "Whitespace cleanup and apartment removal"
+    },
+    {
+      "input": "1261 W GREEN OAKS BLVD STE 107",
+      "expected": "1261 WEST GREEN OAKS BOULEVARD",
+      "description": "Complex address with multiple abbreviations"
+    }
+  ],
+  
+  "search_criteria_validation": [
+    {
+      "input": {
+        "city_name": "Fort Worth",
+        "fire_sprinklers": true,
+        "min_value": 100000,
+        "max_value": 500000,
+        "page": 1,
+        "limit": 50
+      },
+      "expected_valid": true,
+      "description": "Valid search criteria"
+    },
+    {
+      "input": {
+        "min_value": -1000,
+        "max_value": 999999999999,
+        "page": -5,
+        "limit": 2000
+      },
+      "expected_corrections": {
+        "min_value": 0,
+        "max_value": 1000000000,
+        "page": 1, 
+        "limit": 1000
+      },
+      "description": "Invalid values that should be corrected"
+    },
+    {
+      "input": {
+        "center_lat": 29.4241,
+        "center_lng": -98.4936,
+        "radius_km": 5.0
+      },
+      "expected_valid": true,
+      "description": "Valid spatial search"
+    },
+    {
+      "input": {
+        "center_lat": 29.4241,
+        "center_lng": -98.4936
+      },
+      "expected_error": "center_lat, center_lng, and radius_km must all be provided",
+      "description": "Incomplete spatial search parameters"
+    }
+  ],
+  
+  "mock_database_responses": {
+    "property_search": {
+      "success": true,
+      "properties": [
+        {
+          "id": "mock-001",
+          "parcel_number": "MOCK001",
+          "address": "123 Mock Street",
+          "latitude": 29.4241,
+          "longitude": -98.4936,
+          "fire_sprinklers": true,
+          "zoned_by_right": "yes",
+          "occupancy_class": "A-2"
+        },
+        {
+          "id": "mock-002", 
+          "parcel_number": "MOCK002",
+          "address": "456 Test Avenue",
+          "latitude": 29.4242,
+          "longitude": -98.4937,
+          "fire_sprinklers": false,
+          "zoned_by_right": "no",
+          "occupancy_class": "B-1"
+        }
+      ],
+      "count": 2,
+      "total_count": 2
+    },
+    
+    "foia_statistics": {
+      "success": true,
+      "statistics": {
+        "total_parcels": 1448291,
+        "fire_sprinklers_coverage": {
+          "count": 125000,
+          "percentage": 8.6
+        },
+        "zoning_coverage": {
+          "count": 850000,
+          "percentage": 58.7
+        },
+        "occupancy_coverage": {
+          "count": 200000,
+          "percentage": 13.8
+        }
+      }
+    }
+  },
+  
+  "performance_benchmarks": {
+    "address_matching": {
+      "max_time_per_address_ms": 50,
+      "batch_size_target": 1000,
+      "expected_throughput_per_second": 200
+    },
+    "coordinate_updates": {
+      "max_time_per_batch_ms": 5000,
+      "batch_size": 10000, 
+      "expected_throughput_per_second": 2000
+    },
+    "database_queries": {
+      "property_search_max_ms": 100,
+      "single_property_lookup_max_ms": 25,
+      "foia_statistics_max_ms": 200
+    }
+  }
+}

@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "gen-types": "SUPABASE_ACCESS_TOKEN=sbp_337e749eecf85740eecf8ac1e5702c79ff8d523a supabase gen types typescript --project-id mpkprmjejiojdjbkkbmn > src/types/database.types.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

@@ -24,8 +24,14 @@ xlrd==2.0.2
 
 # Development and Testing
 pytest==8.3.2
+pytest-cov==5.0.0
 black==24.8.0
-flake8==7.1.1
+ruff==0.8.5
+bandit==1.7.5
+safety==3.2.5
+
+# Structured Logging
+structlog==25.4.0
 
 # Performance Monitoring
 psutil==6.0.0

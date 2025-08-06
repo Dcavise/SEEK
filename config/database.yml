@@ -1,0 +1,101 @@
+# Database Configuration
+# Environment-specific database settings
+
+default: &default
+  host: aws-0-us-east-1.pooler.supabase.com
+  port: 6543
+  database: postgres
+  user: postgres.mpkprmjejiojdjbkkbmn
+  # Password should be set via SUPABASE_DB_PASSWORD environment variable
+  
+  # Connection pool settings
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+  
+  # Query settings
+  statement_timeout: 30000  # 30 seconds
+  idle_in_transaction_session_timeout: 60000  # 1 minute
+  
+  # Performance settings
+  default_transaction_isolation: READ_COMMITTED
+  
+development:
+  <<: *default
+  pool_size: 5
+  max_overflow: 10
+  echo: true  # Log SQL queries in development
+
+test:
+  <<: *default
+  database: postgres_test
+  pool_size: 2
+  max_overflow: 5
+
+production:
+  <<: *default
+  pool_size: 20
+  max_overflow: 50
+  echo: false
+  
+  # Production security settings
+  ssl_require: true
+  ssl_cert_reqs: required
+  
+  # Enhanced timeouts for large operations
+  statement_timeout: 300000  # 5 minutes for bulk operations
+  
+# Supabase specific settings
+supabase:
+  url: ${SUPABASE_URL}
+  service_key: ${SUPABASE_SERVICE_KEY}
+  anon_key: ${SUPABASE_ANON_KEY}
+  
+  # RPC function timeouts
+  rpc_timeout: 30
+  
+  # Real-time subscriptions
+  realtime_enabled: true
+  
+# PostGIS spatial settings
+spatial:
+  srid: 4326  # WGS84 coordinate system
+  
+  # Texas bounding box for validation
+  bounds:
+    min_lat: 25.837
+    max_lat: 36.501
+    min_lng: -106.646
+    max_lng: -93.508
+  
+  # Spatial query settings
+  default_buffer_distance: 1000  # meters
+  max_search_radius: 100000     # 100km max radius
+  
+# Import settings
+import:
+  batch_size: 50000
+  max_file_size: 500MB
+  
+  # CSV processing
+  chunk_size: 10000
+  encoding_fallbacks: [utf-8, latin1, cp1252]
+  
+  # Coordinate validation
+  coordinate_precision: 8  # decimal places
+  
+# FOIA integration settings  
+foia:
+  # Address matching thresholds
+  exact_match_threshold: 1.0
+  high_confidence_threshold: 0.9
+  medium_confidence_threshold: 0.75
+  
+  # Batch processing
+  batch_size: 1000
+  max_concurrent_matches: 10
+  
+  # File upload limits
+  max_file_size: 50MB
+  allowed_extensions: [csv, xlsx, xls]

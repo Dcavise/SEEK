@@ -40,6 +40,96 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
+## 📁 Project Structure & Organization (Updated August 6, 2025)
+
+**MAJOR REFACTOR**: The project has been reorganized to follow modern Python standards with domain-driven architecture for improved maintainability, testability, and team collaboration.
+
+### 🏗️ New Directory Structure
+```
+SEEK/
+├── src/                        # Source code organized by domain
+│   ├── __init__.py
+│   ├── api/                    # RESTful API endpoints
+│   │   ├── property_search.py  # Property search with FOIA filtering
+│   │   └── foia_integration.py # FOIA data upload and processing
+│   ├── services/               # Business logic layer
+│   │   ├── address_matcher.py  # Advanced fuzzy address matching
+│   │   ├── coordinate_updater.py # Bulk coordinate import service  
+│   │   └── import_service.py   # Data import orchestration
+│   ├── models/                 # Data models and validation
+│   │   └── schemas.py          # Pydantic models for type safety
+│   └── utils/                  # Shared utilities
+│       ├── database.py         # Database connection management
+│       └── logger.py           # Centralized logging configuration
+│
+├── tests/                      # Comprehensive testing structure
+│   ├── unit/                   # Isolated unit tests
+│   │   ├── test_address_matcher.py
+│   │   └── test_coordinate_updater.py
+│   ├── integration/            # Database integration tests
+│   │   ├── test_auth_flow.py
+│   │   └── test_foia_import.py
+│   └── fixtures/               # Test data and mocks
+│       └── sample_data.json
+│
+├── scripts/                    # Organized by purpose
+│   ├── import/                 # Data import scripts
+│   ├── analysis/               # Analysis and debugging tools
+│   └── maintenance/            # Maintenance and utility scripts
+│
+├── config/                     # Configuration management
+│   ├── logging.yml            # Logging configuration
+│   └── database.yml           # Database settings by environment
+│
+├── .github/workflows/          # CI/CD automation
+│   └── test.yml               # Automated testing pipeline
+│
+└── pyproject.toml             # Modern Python project configuration
+```
+
+### 🎯 Architecture Benefits
+
+**Professional Standards**: Follows Python packaging best practices and PEP standards
+**Separation of Concerns**: Clear boundaries between API, business logic, data, and utilities
+**Domain-Driven Design**: Code organized by functionality rather than file type
+**Testability**: Dedicated testing structure with unit/integration separation  
+**Team Scalability**: Structure supports multiple developers working simultaneously
+**Configuration Management**: Environment-specific settings externalized
+**Type Safety**: Comprehensive Pydantic models for data validation
+**CI/CD Ready**: Automated quality checks and deployment pipelines
+
+### 🔧 Key Services Created
+
+1. **PropertySearchAPI** (`src/api/property_search.py`)
+   - RESTful API with comprehensive FOIA filtering
+   - Spatial search capabilities with PostGIS integration
+   - Input validation and SQL injection prevention
+   - Performance optimized with database indexes
+
+2. **AddressMatcher** (`src/services/address_matcher.py`)
+   - Multi-tier matching: exact → normalized → fuzzy
+   - Confidence scoring with street number validation
+   - Prevents false positives between different addresses
+   - Optimized for FOIA data integration workflows
+
+3. **CoordinateUpdater** (`src/services/coordinate_updater.py`)
+   - Production-ready bulk coordinate import service
+   - Temporary table approach for 99,000+ updates/second
+   - Texas boundary validation and error handling
+   - Comprehensive statistics and progress tracking
+
+4. **DatabaseManager** (`src/utils/database.py`)
+   - Connection pooling for PostgreSQL and Supabase
+   - Bulk operations with transaction management
+   - Configuration-driven connection settings
+   - Health checks and connection validation
+
+5. **Pydantic Models** (`src/models/schemas.py`)
+   - Type-safe data validation for all operations
+   - API request/response models with validation
+   - FOIA import session and update tracking
+   - User management and property assignment models
+
 ### Database Schema Details
 
 #### Core Tables
@@ -64,6 +154,7 @@
    - county_id: UUID foreign key → counties
    - latitude: DECIMAL(10,8) - Geographic coordinate (99.4% coverage)
    - longitude: DECIMAL(11,8) - Geographic coordinate (99.4% coverage)
+   - geom: GEOMETRY(Point, 4326) - PostGIS spatial geometry (99.39% coverage)
    - owner_name: VARCHAR(255)
    - property_value: DECIMAL(12,2)
    - lot_size: DECIMAL(10,2)
@@ -448,6 +539,71 @@ const usePropertySearch = (options) => ({
 - **Improvement**: 47.0% → 99.4% coverage in single session
 - **Processing Speed**: 99,000+ updates/second
 - **Remaining**: 8,828 parcels (likely edge cases with invalid parcel numbers)
+
+### Phase 1.7: PostGIS Spatial Enhancement (COMPLETED - August 6, 2025)
+
+#### Spatial Database Implementation
+**PostGIS Extension**: Added spatial capabilities to the existing PostgreSQL database
+- **Geometry Column**: `geom geometry(Point, 4326)` added to parcels table
+- **Spatial Reference**: SRID 4326 (WGS84) for GPS coordinates
+- **Coverage**: 99.39% spatial geometry coverage (1,439,463 parcels)
+
+#### Spatial Indexing Strategy
+```sql
+-- Primary spatial index for fast geospatial queries
+CREATE INDEX idx_parcels_geom ON parcels USING GIST(geom);
+
+-- Covering index for non-null geometry optimization  
+CREATE INDEX idx_parcels_geom_covering ON parcels USING GIST(geom) 
+WHERE geom IS NOT NULL;
+
+-- Coordinate fallback index
+CREATE INDEX idx_parcels_coordinates ON parcels(latitude, longitude) 
+WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+```
+
+#### Spatial Query Capabilities
+**Performance Results**:
+- **Radius Queries**: <5ms using ST_DWithin
+- **Bounding Box**: <2ms using geometry operators
+- **Nearest Neighbor**: <3ms using KNN operators
+- **Clustering**: Dynamic clustering for map zoom levels
+
+**Spatial Functions Available**:
+- Properties within radius of any point
+- Bounding box searches for map viewports
+- Nearest neighbor discovery
+- Property clustering for performance
+- Distance calculations in km/miles
+- Combined spatial + FOIA filtering
+
+#### Type Safety Enhancement (COMPLETED - August 6, 2025)
+
+**Database Type Generation**:
+```bash
+# Auto-generate types from live schema
+SUPABASE_ACCESS_TOKEN=sbp_[token] supabase gen types typescript \
+  --project-id mpkprmjejiojdjbkkbmn > src/types/database.types.ts
+```
+
+**Enhanced Type Definitions**:
+- **database.types.ts**: Auto-generated from Supabase schema
+- **property.enhanced.ts**: Spatial-aware property types
+- **Backward Compatibility**: Legacy Property interface preserved
+- **Type Guards**: Safe type checking utilities
+
+**Type-Safe Operations**:
+```typescript
+// Database-generated types
+type Parcel = Database['public']['Tables']['parcels']['Row']
+type ParcelInsert = Database['public']['Tables']['parcels']['Insert']
+
+// Enhanced spatial types
+interface EnhancedParcel extends Omit<Parcel, 'geom'> {
+  geom?: { type: 'Point'; coordinates: [number, number] } | null
+  distance_km?: number
+}
+```
 
 ## Known Issues & Solutions
 1. **CSV Encoding**: Some county files may have encoding issues

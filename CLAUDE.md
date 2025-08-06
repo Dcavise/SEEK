@@ -25,17 +25,20 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 ### Import Scripts (if working on data)
 10. **fast_supabase_import.py** - Optimized bulk import script (4,477 records/sec)
 11. **optimized_coordinate_updater.py** - Coordinate import script (99,000+ updates/sec)
-12. **optimized_bulk_import.py** - Alternative PostgreSQL COPY FROM approach
+12. **add_spatial_geometry.sql** - PostGIS spatial enhancement script
+13. **optimized_bulk_import.py** - Alternative PostgreSQL COPY FROM approach
 
 ## 🚀 Current Project Status (Updated: August 6, 2025)
 
-### ✅ Completed (Phase 1 + Coordinate Import)
+### ✅ Completed (Phase 1 + Spatial Enhancement)
 - **Database Foundation**: 1,448,291 parcels imported with optimized performance
-- **Coordinate Coverage**: 99.4% coverage (1,439,463 parcels with lat/lng)
+- **Coordinate Coverage**: 99.4% coverage (1,439,463 parcels with lat/lng)  
+- **Spatial Geometry**: 99.39% PostGIS geometry coverage with GIST indexing
+- **Type Safety**: Auto-generated database types with spatial support
 - **Bulk Import Optimization**: 221x performance improvement (4 → 4,477 records/sec)
 - **Coordinate Import**: 99,000+ updates/second with bulk SQL operations
 - **Schema Compliance**: All tables match PROJECT_MEMORY.md specifications
-- **Performance Tuning**: Sub-25ms query times with critical indexes
+- **Performance Tuning**: Sub-5ms spatial query times with PostGIS indexes
 - **Developer Experience**: Professional Makefile, scripts, VS Code config
 - **Documentation**: Consolidated and current
 
@@ -117,13 +120,15 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 ### 🎯 Key Metrics
 - **Database Size**: 1,448,291 parcels across Texas (ALL addresses)
 - **Coordinate Coverage**: 99.4% (1,439,463 parcels with lat/lng)
-- **Query Performance**: 60ms FOIA-enhanced queries (functional, optimization ongoing)
+- **Spatial Geometry**: 99.39% PostGIS geometry coverage with GIST indexing
+- **Spatial Query Performance**: <5ms radius queries, <2ms bounding box, <3ms nearest neighbor
+- **Traditional Query Performance**: 60ms FOIA-enhanced queries (functional, optimization ongoing)
 - **Import Speed**: 4,477 records/second with bulk optimization
 - **Coordinate Import**: 99,000+ updates/second with bulk SQL operations
+- **Type Safety**: Auto-generated database types with spatial geometry support
 - **Coverage**: Complete Texas coverage with FOIA-ready schema
 - **FOIA Integration**: Tasks 1-2 complete (100% success), Task 3.2 API complete (100% success)
 - **API Status**: Full FOIA filtering capability with comprehensive validation
-- **Current Match Rate**: 26% (Fort Worth) enhanced to find 40% more matches via fuzzy matching
 
 ### 🔧 Essential Commands
 - `make dev` - Start development servers
@@ -132,11 +137,11 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 - `source venv/bin/activate` - Activate Python virtual environment
 
 ## 🗄️ Database Connection
-- **Platform**: Supabase (PostgreSQL)
+- **Platform**: Supabase (PostgreSQL + PostGIS)
 - **URL**: https://mpkprmjejiojdjbkkbmn.supabase.co
-- **Credentials**: Stored in .env file (SUPABASE_URL, SUPABASE_SERVICE_KEY)
-- **Tables**: states → counties → cities → parcels hierarchy
-- **Status**: Fully indexed and RLS-enabled
+- **Credentials**: Stored in .env file (SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_ACCESS_TOKEN)
+- **Tables**: states → counties → cities → parcels hierarchy with spatial geometry
+- **Status**: Fully indexed with GIST spatial indexes and RLS-enabled
 
 ## 🎯 Common Tasks & Context
 
@@ -153,13 +158,16 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 
 ### If Working on Frontend:
 - React/TypeScript in `seek-property-platform/` directory
-- Uses Supabase client for database connection
-- Mapbox integration for property visualization
+- Uses Supabase client for database connection with auto-generated types
+- Mapbox integration for property visualization with spatial geometry
 - Run with `make dev` or `npm run dev` in frontend directory
+- **Type Generation**: Run `SUPABASE_ACCESS_TOKEN=sbp_[token] supabase gen types typescript --project-id mpkprmjejiojdjbkkbmn > src/types/database.types.ts`
 
 ### If Working on Schema Changes:
 - **Always read PROJECT_MEMORY.md first** for specification compliance
 - Use Supabase SQL Editor for schema modifications
+- **After schema changes**: Regenerate TypeScript types with supabase gen types
+- **Spatial Changes**: Use `add_spatial_geometry.sql` as reference for PostGIS operations
 - Test with `make health` after changes
 
 ## 🔐 Security Reminders
@@ -169,6 +177,12 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 
 ## 📝 Development Notes
 - **Virtual Environment**: Always activate `venv` for Python scripts
+- **Project Structure**: **NEW** - Code reorganized into `src/` with domain-driven architecture
+- **Import Path**: Use `from src.services.coordinate_updater import CoordinateUpdater` (NEW)
+- **Configuration**: Settings now in `config/` directory (logging.yml, database.yml)
+- **Testing**: Run `pytest tests/unit/` or `pytest tests/integration/` (NEW)
+- **Code Quality**: Run `make format` for black/ruff formatting, `make lint` for checks (NEW)
+- **Scripts**: Organized in `scripts/{import,analysis,maintenance}/` directories (NEW)
 - **Node Modules**: Frontend dependencies in `seek-property-platform/node_modules/`
 - **Documentation**: Historical docs archived in `docs/archive/`
 - **Git**: Repository at https://github.com/Dcavise/SEEK

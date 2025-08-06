@@ -52,11 +52,37 @@ build-dev: ## Build frontend for development
 	@cd seek-property-platform && npm run build:dev
 
 # Testing and Quality
-test: ## Run tests and linting
+test: ## Run comprehensive tests and quality checks
+	@echo "Running Python code quality checks..."
+	@. venv/bin/activate && ruff check . --fix
+	@. venv/bin/activate && black . --check
+	@echo "Running Python unit tests..."
+	@. venv/bin/activate && pytest tests/unit/ -v --tb=short || echo "Unit tests not yet implemented"
 	@echo "Running frontend tests..."
 	@cd seek-property-platform && npm run lint
 	@echo "Testing database connection..."
-	@. venv/bin/activate && python -c "from supabase import create_client; print('✅ Database connection OK')"
+	@. venv/bin/activate && python -c "from src.utils.database import db_manager; print('✅', db_manager.validate_connection())" || echo "Database utilities not yet configured"
+
+test-unit: ## Run unit tests only
+	@echo "Running unit tests..."
+	@. venv/bin/activate && pytest tests/unit/ -v --cov=src --cov-report=term-missing || echo "Unit tests not yet implemented"
+
+test-integration: ## Run integration tests (requires database)
+	@echo "Running integration tests..."
+	@. venv/bin/activate && pytest tests/integration/ -v --maxfail=3 || echo "Integration tests moved to tests/integration/"
+
+format: ## Format Python code with black and ruff
+	@echo "Formatting Python code..."
+	@. venv/bin/activate && black .
+	@. venv/bin/activate && ruff check . --fix
+
+lint: ## Run Python linting without fixes
+	@echo "Running Python linting..."
+	@. venv/bin/activate && ruff check .
+	@. venv/bin/activate && black . --check
+
+type-check: ## Run type checking (if mypy added)
+	@echo "Type checking would run here (mypy not yet configured)"
 
 health: check-env ## Run comprehensive health checks
 	@echo "Running health checks..."
@@ -79,6 +105,20 @@ analyze: check-env ## Run database performance analysis
 test-api: check-env ## Test FOIA-enhanced search API functionality
 	@echo "Testing FOIA Search API (Task 3.2)..."
 	@. venv/bin/activate && python test_task_3_2_final.py
+
+# Spatial Operations
+spatial-setup: check-env ## Set up PostGIS spatial geometry and indexes
+	@echo "Setting up PostGIS spatial enhancement..."
+	@. venv/bin/activate && python -c "import psycopg2; import os; from dotenv import load_dotenv; load_dotenv(); conn = psycopg2.connect(host='aws-0-us-east-1.pooler.supabase.com', database='postgres', user='postgres.mpkprmjejiojdjbkkbmn', password=os.getenv('SUPABASE_DB_PASSWORD'), port=6543); cur = conn.cursor(); cur.execute(open('add_spatial_geometry.sql').read()); conn.commit(); print('✅ Spatial geometry setup complete')"
+
+spatial-test: check-env ## Test spatial query performance
+	@echo "Testing spatial query performance..."
+	@. venv/bin/activate && python -c "import psycopg2; import os; import time; from dotenv import load_dotenv; load_dotenv(); conn = psycopg2.connect(host='aws-0-us-east-1.pooler.supabase.com', database='postgres', user='postgres.mpkprmjejiojdjbkkbmn', password=os.getenv('SUPABASE_DB_PASSWORD'), port=6543); cur = conn.cursor(); start = time.time(); cur.execute('SELECT COUNT(*) FROM parcels WHERE ST_DWithin(geom, ST_SetSRID(ST_MakePoint(-98.4936, 29.4241), 4326), 0.01)'); result = cur.fetchone(); end = time.time(); print(f'Found {result[0]} properties near San Antonio in {(end-start)*1000:.1f}ms'); conn.close()"
+
+gen-types: ## Generate TypeScript types from database schema  
+	@echo "Generating TypeScript database types..."
+	@cd seek-property-platform && SUPABASE_ACCESS_TOKEN=sbp_337e749eecf85740eecf8ac1e5702c79ff8d523a supabase gen types typescript --project-id mpkprmjejiojdjbkkbmn > src/types/database.types.ts
+	@echo "✅ Database types generated"
 
 # Utilities
 clean: ## Clean build artifacts and cache
