@@ -94,22 +94,22 @@ export function PropertyFilters({ onFiltersChange }: {
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-2 flex-wrap min-w-0">
       {/* Active Filter Tags */}
       {activeFilters.map((filter) => (
         <Badge 
           key={filter.type} 
           variant="secondary"
-          className="gap-1 pr-1"
+          className="gap-1 pr-1 flex-shrink-0 text-xs h-6"
         >
           {filter.type === "fire_sprinklers" && <Flame className="h-3 w-3" />}
           {filter.type === "zoned_by_right" && <MapPin className="h-3 w-3" />}
           {filter.type === "occupancy_class" && <Building className="h-3 w-3" />}
-          {filter.label}
+          <span className="truncate max-w-[100px]">{filter.label}</span>
           <Button
             variant="ghost"
             size="icon"
-            className="h-4 w-4 ml-1 hover:bg-transparent"
+            className="h-4 w-4 ml-1 hover:bg-transparent flex-shrink-0"
             onClick={() => removeFilter(filter.type)}
           >
             <X className="h-3 w-3" />
@@ -123,7 +123,7 @@ export function PropertyFilters({ onFiltersChange }: {
           variant="outline"
           size="sm"
           onClick={clearAll}
-          className="h-7 text-xs"
+          className="h-6 text-xs px-2 flex-shrink-0"
         >
           Clear All
         </Button>
@@ -135,7 +135,7 @@ export function PropertyFilters({ onFiltersChange }: {
           <Button
             variant="outline"
             size="sm"
-            className="h-7 gap-1"
+            className="h-6 gap-1 text-xs px-2 flex-shrink-0"
           >
             <ListFilter className="h-3 w-3" />
             {activeFilters.length === 0 ? "Filters" : `(${activeFilters.length})`}

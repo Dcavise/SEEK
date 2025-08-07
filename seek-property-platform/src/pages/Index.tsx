@@ -10,34 +10,28 @@ import { Header } from '@/components/shared/Header';
 import { PropertyTable } from '@/components/table/PropertyTable';
 import { Button } from '@/components/ui/button';
 import { usePropertySearch } from '@/hooks/usePropertySearch';
+import { useURLFilters } from '@/hooks/useURLFilters';
 import { ExtendedFilterCriteria, FOIAFilters } from '@/lib/propertySearchService';
 import { Property } from '@/types/property';
-
-const defaultFilters: ExtendedFilterCriteria = {
-  current_occupancy: [],
-  min_square_feet: 0,
-  max_square_feet: 100000,
-  status: [],
-  assigned_to: null,
-  foiaFilters: {
-    fire_sprinklers: null,
-    zoned_by_right: null,
-    occupancy_class: null
-  },
-  page: 1,
-  limit: 500, // Increased for better map visualization
-  sortBy: 'address',
-  sortOrder: 'asc'
-};
 
 // Mock data generation removed - now using real FOIA-enhanced search API
 
 const Index = () => {
   const navigate = useNavigate();
+  
+  // Use URL-synchronized filters and view state
+  const { 
+    filters, 
+    currentView, 
+    updateFilters, 
+    updateView, 
+    generateShareableURL, 
+    hasActiveFilters,
+    isInitializing 
+  } = useURLFilters();
+  
   const [isEmptyState, setIsEmptyState] = useState<boolean>(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [filters, setFilters] = useState<ExtendedFilterCriteria>(defaultFilters);
-  const [currentView, setCurrentView] = useState<'map' | 'table'>('map');
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
   const [isOverloadMode, setIsOverloadMode] = useState<boolean>(false);
   const [showQuickFilter, setShowQuickFilter] = useState<boolean>(false);
@@ -56,6 +50,14 @@ const Index = () => {
     enabled: !isEmptyState && (!!filters.city || !!filters.foiaFilters)
   });
 
+  // Initialize empty state based on URL parameters
+  useEffect(() => {
+    if (hasActiveFilters() && isEmptyState) {
+      setIsEmptyState(false);
+      updateSearchCriteria(filters);
+    }
+  }, [hasActiveFilters, isEmptyState, filters, updateSearchCriteria]);
+
   // Auto-select first property only in table view or when explicitly needed
   // DO NOT auto-select in map view to prevent unwanted zooming to individual properties
   useEffect(() => {
@@ -64,16 +66,19 @@ const Index = () => {
     }
   }, [properties, selectedProperty, currentView]);
 
-  // Handle overload mode for large result sets
+  // Handle overload mode for large result sets - DISABLED to always show individual markers
   useEffect(() => {
-    if (totalProperties >= 500) {
-      setIsOverloadMode(true);
-      setShowQuickFilter(true);
-      setCurrentView('map');
-    } else {
-      setIsOverloadMode(false);
-    }
-  }, [totalProperties]);
+    // Overload mode disabled - always use individual property markers
+    setIsOverloadMode(false);
+    setShowQuickFilter(false);
+    
+    // Keep the view update logic for very large datasets if needed
+    // if (totalProperties >= 2000) {
+    //   setIsOverloadMode(true);
+    //   setShowQuickFilter(true);
+    //   updateView('map');
+    // }
+  }, [totalProperties, updateView]);
 
 
   const handleCitySearch = () => {
@@ -92,12 +97,12 @@ const Index = () => {
     // Clear any existing property selection to prevent unwanted zoom
     setSelectedProperty(null);
     
-    // Update search criteria with the selected city
+    // Update search criteria with the selected city using URL-synchronized function
     const newFilters = {
       ...filters,
       city: city
     };
-    setFilters(newFilters);
+    updateFilters(newFilters); // This will update both state and URL
     updateSearchCriteria(newFilters);
     
     // Exit empty state
@@ -131,12 +136,12 @@ const Index = () => {
       ...filters,
       foiaFilters: foiaFilters
     };
-    setFilters(newFilters);
+    updateFilters(newFilters); // This will update both state and URL
     updateSearchCriteria(newFilters);
   };
 
   const handleViewToggle = (view: 'map' | 'table') => {
-    setCurrentView(view);
+    updateView(view); // This will update both state and URL
   };
 
   const handleSelectionChange = (selectedIds: string[]) => {

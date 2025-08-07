@@ -450,6 +450,89 @@ export class PropertySearchService {
       recentFOIAUpdates: recentUpdates || 0
     };
   }
+
+  /**
+   * Get a single property by its ID
+   * Used for direct property URL access
+   */
+  async getPropertyById(id: string): Promise<Property | null> {
+    try {
+      // Validate ID format (should be UUID)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(id)) {
+        console.error('Invalid property ID format:', id);
+        return null;
+      }
+
+      const { data: property, error } = await supabase
+        .from('parcels')
+        .select(`
+          id,
+          apn,
+          address,
+          city,
+          county,
+          state,
+          zip_code,
+          latitude,
+          longitude,
+          square_feet,
+          property_type,
+          zoned_by_right,
+          occupancy_class,
+          fire_sprinklers,
+          created_at,
+          updated_at
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          console.log('Property not found with ID:', id);
+          return null;
+        }
+        console.error('Database error fetching property:', error);
+        throw new Error(`Failed to fetch property: ${error.message}`);
+      }
+
+      if (!property) {
+        return null;
+      }
+
+      // Transform to match Property interface
+      const transformedProperty: Property = {
+        id: property.id,
+        apn: property.apn || '',
+        address: property.address || '',
+        city: property.city || '',
+        county: property.county || '',
+        state: property.state || '',
+        zip_code: property.zip_code || '',
+        latitude: property.latitude || 0,
+        longitude: property.longitude || 0,
+        square_feet: property.square_feet || 0,
+        property_type: property.property_type || 'Unknown',
+        zoned_by_right: property.zoned_by_right,
+        occupancy_class: property.occupancy_class,
+        fire_sprinklers: property.fire_sprinklers,
+        created_at: property.created_at || new Date().toISOString(),
+        updated_at: property.updated_at || new Date().toISOString(),
+        // Default values for fields that might be undefined
+        current_occupancy: 'Unknown',
+        status: 'new',
+        assigned_to: null
+      };
+
+      console.log('Successfully fetched property:', transformedProperty);
+      return transformedProperty;
+
+    } catch (error) {
+      console.error('Error in getPropertyById:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance

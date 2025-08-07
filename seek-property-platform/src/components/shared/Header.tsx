@@ -64,6 +64,28 @@ export function Header({
     setTimeout(() => setShowDropdown(false), 200);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // If there's a search value but no cities in dropdown, treat as direct search
+      if (searchValue.trim() && cities.length === 0 && !loading) {
+        // Assume it's a city name and try to search directly
+        const cityName = searchValue.trim();
+        if (onCitySearch) {
+          onCitySearch(cityName);
+          setSearchValue('');
+          setShowDropdown(false);
+        }
+      }
+      // If there are cities in dropdown, select the first one
+      else if (cities.length > 0) {
+        const firstCity = cities[0];
+        handleSearch(firstCity.name, firstCity.state);
+      }
+    }
+  };
+
   const highlightMatch = (text: string, query: string) => {
     if (!query || query.length < 2) return text;
     
@@ -93,10 +115,10 @@ export function Header({
         </div>
         
         {/* Center Section - Search Box & Filters */}
-        <div className="flex-1 flex justify-center max-w-2xl mx-auto relative">
-          <div className="flex items-center gap-3 w-full">
+        <div className="flex-1 flex justify-center max-w-4xl mx-auto relative">
+          <div className="flex items-center gap-3 w-full min-w-0">
             {/* Search Input */}
-            <div className="relative w-full max-w-sm">
+            <div className="relative w-full max-w-sm flex-shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -106,6 +128,7 @@ export function Header({
                   onChange={handleInputChange}
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
+                  onKeyDown={handleKeyDown}
                   className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200 ${
                     isStale ? 'ring-2 ring-yellow-200 bg-yellow-50' : ''
                   }`}
@@ -167,7 +190,9 @@ export function Header({
             
             {/* Compact FOIA Filters */}
             {onFOIAFiltersChange && (
-              <PropertyFilters onFiltersChange={onFOIAFiltersChange} />
+              <div className="flex-1 min-w-0">
+                <PropertyFilters onFiltersChange={onFOIAFiltersChange} />
+              </div>
             )}
           </div>
         </div>
