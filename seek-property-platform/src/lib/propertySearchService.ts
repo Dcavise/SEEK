@@ -551,6 +551,9 @@ export class PropertySearchService {
           zoned_by_right,
           occupancy_class,
           fire_sprinklers,
+          parcel_sqft,
+          zoning_code,
+          zip_code,
           created_at,
           updated_at,
           cities!city_id (

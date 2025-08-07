@@ -604,7 +604,7 @@ export function PropertyPanel({
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#1A1A1A]">{property.lot_size?.toLocaleString() || 'N/A'}</span>
+                  <span className="text-sm text-[#1A1A1A]">{(property.parcel_sq_ft || property.lot_size)?.toLocaleString() || 'N/A'}</span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -685,12 +685,37 @@ export function PropertyPanel({
             </div>
             <div>
               <div className="text-xs text-[#6B7280] mb-1">Zoning Code</div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-[#6B7280] italic">Not available in database</span>
-                <div className="text-xs text-[#6B7280]">
-                  Use zoning compliance above
+              {editingFields.has('zoning_code') ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    value={tempValues.zoning_code || ''}
+                    onChange={(e) => setTempValues(prev => ({ ...prev, zoning_code: e.target.value || null }))}
+                    className="text-sm flex-1"
+                    placeholder="Enter zoning code"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    onClick={() => saveEdit('zoning_code')}
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#1A1A1A]">{property.zoning_code || 'N/A'}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    onClick={() => startEditing('zoning_code')}
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
             
             <div>
