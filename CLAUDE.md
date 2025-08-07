@@ -7,28 +7,39 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 
 ## 📋 Essential Files to Read on Session Start
 
-### Core Documentation (Always Read First)
-1. **README.md** - Main project documentation with current status, architecture, and commands
-2. **PROJECT_MEMORY.md** - Technical specifications, database schema, and implementation details
+### 🔥 CRITICAL React Issues Documentation (READ FIRST FOR FRONTEND WORK)
+1. **REACT_INFINITE_LOOP_SOLUTION.md** - PERMANENT REFERENCE for React infinite loop fixes (SOLVED Aug 7, 2025)
+
+### Core Documentation (Always Read First)  
+2. **README.md** - Main project documentation with current status, architecture, and commands
+3. **PROJECT_MEMORY.md** - Technical specifications, database schema, and implementation details
 
 ### Key Project Files for Context
-3. **Makefile** - All available development commands and workflows
-4. **.env** - Environment variables (Supabase credentials) - Handle with security
-5. **requirements.txt** - Python dependencies for backend
-6. **seek-property-platform/package.json** - Frontend dependencies and scripts
+4. **Makefile** - All available development commands and workflows
+5. **.env** - Environment variables (Supabase credentials) - Handle with security
+6. **requirements.txt** - Python dependencies for backend
+7. **seek-property-platform/package.json** - Frontend dependencies and scripts
 
 ### Database Schema Files
-7. **mvp_database_architecture.sql** - Database schema definition
-8. **create_critical_indexes.sql** - Performance optimization indexes
-9. **schema_fixes.sql** - Schema compliance fixes
+8. **mvp_database_architecture.sql** - Database schema definition
+9. **create_critical_indexes.sql** - Performance optimization indexes
+10. **schema_fixes.sql** - Schema compliance fixes
 
 ### Import Scripts (if working on data)
-10. **fast_supabase_import.py** - Optimized bulk import script (4,477 records/sec)
-11. **optimized_coordinate_updater.py** - Coordinate import script (99,000+ updates/sec)
-12. **add_spatial_geometry.sql** - PostGIS spatial enhancement script
-13. **optimized_bulk_import.py** - Alternative PostgreSQL COPY FROM approach
+11. **fast_supabase_import.py** - Optimized bulk import script (4,477 records/sec)
+12. **optimized_coordinate_updater.py** - Coordinate import script (99,000+ updates/sec)
+13. **add_spatial_geometry.sql** - PostGIS spatial enhancement script
+14. **optimized_bulk_import.py** - Alternative PostgreSQL COPY FROM approach
 
-## 🚀 Current Project Status (Updated: August 6, 2025 - Latest Commit: 59b7d4e)
+## 🚀 Current Project Status (Updated: August 7, 2025 - Latest Commit: 5f7b2e0)
+
+### 🔥 CRITICAL REACT FIX (August 7, 2025) - PRODUCTION READY ✅
+- **React Infinite Loop Issue**: PERMANENTLY RESOLVED ✅
+- **Root Cause**: Startup infinite loop between PropertyContext, Index.tsx, and usePropertySearch
+- **Files Fixed**: 3 critical files with property equality checking and stable references
+- **Status**: App now starts cleanly without "Maximum update depth exceeded" errors
+- **Reference**: REACT_INFINITE_LOOP_SOLUTION.md contains complete documentation
+- **Testing**: Verified startup, city search, FOIA filters all working smoothly
 
 ### ✅ Completed (Phase 1 + Spatial Enhancement)
 - **Database Foundation**: 1,448,291 parcels imported with optimized performance
@@ -146,6 +157,12 @@ SEEK is a Texas property search platform for real estate investment analysis. Th
 - `make health` - Check system performance and status
 - `make help` - Show all available commands
 - `source venv/bin/activate` - Activate Python virtual environment
+
+### 🚨 React Troubleshooting Commands
+- `rm -rf seek-property-platform/node_modules/.vite` - Clear Vite cache if React issues
+- `npm run dev` - Restart dev server after cache clear
+- `grep -r "|| \[\]" src/` - Find potential new array creation causing loops
+- `grep -r "set[A-Z]" src/` - Find setState calls that might cause infinite updates
 
 ## 🗄️ Database Connection
 - **Platform**: Supabase (PostgreSQL + PostGIS)

@@ -39,6 +39,9 @@ const Index = () => {
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
   
+  // CRITICAL FIX: Track previous properties to prevent infinite setProperties calls
+  const prevPropertiesRef = useRef<Property[]>([]);
+  
   const [isEmptyState, setIsEmptyState] = useState<boolean>(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
@@ -78,9 +81,23 @@ const Index = () => {
     }
   }, [filters, isEmptyState, updateSearchCriteria]); // ✅ Use entire filters object to reduce re-renders
 
-  // Update property context when properties change
+  // CRITICAL FIX: Only update property context when properties actually change
   useEffect(() => {
-    setProperties(properties);
+    // Prevent infinite loop - only update if properties have actually changed
+    const prevProperties = prevPropertiesRef.current;
+    
+    // Check if properties have actually changed
+    const hasChanged = prevProperties.length !== properties.length || 
+                      prevProperties !== properties ||
+                      (prevProperties.length === 0 && properties.length === 0 ? false : true);
+    
+    if (hasChanged) {
+      // Only update if there's a real change
+      if (!(prevProperties.length === 0 && properties.length === 0)) {
+        prevPropertiesRef.current = properties;
+        setProperties(properties);
+      }
+    }
   }, [properties, setProperties]);
 
   // Auto-select first property only in table view or when explicitly needed

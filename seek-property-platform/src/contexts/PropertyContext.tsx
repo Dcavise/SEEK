@@ -37,7 +37,32 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // CRITICAL FIX: Check if properties have actually changed before updating state
+  const arePropertiesEqual = useCallback((a: Property[], b: Property[]) => {
+    if (a.length !== b.length) return false;
+    if (a.length === 0 && b.length === 0) return true; // Both empty - equal
+    
+    // For non-empty arrays, check if they're the same reference or have same IDs
+    if (a === b) return true;
+    
+    // Quick check - if both have properties, compare first few IDs
+    if (a.length > 0 && b.length > 0) {
+      const maxCheck = Math.min(5, a.length, b.length);
+      for (let i = 0; i < maxCheck; i++) {
+        if (a[i]?.id !== b[i]?.id) return false;
+      }
+      return true; // Same first few IDs, assume equal
+    }
+    
+    return false;
+  }, []);
+
   const stableSetProperties = useCallback((newProperties: Property[]) => {
+    // CRITICAL: Only update if properties have actually changed
+    if (arePropertiesEqual(prevPropertiesRef.current, newProperties)) {
+      return; // No change - exit early to prevent infinite loops
+    }
+    
     prevPropertiesRef.current = newProperties;
     setProperties(newProperties);
     
@@ -66,7 +91,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     } else if (!cityUpdateInProgressRef.current && newProperties.length === 0) {
       setCurrentCity(null);
     }
-  }, []);
+  }, [arePropertiesEqual]);
 
   const stableSetMapBounds = useCallback((bounds: PropertyContextValue['mapBounds']) => {
     setMapBounds(bounds);

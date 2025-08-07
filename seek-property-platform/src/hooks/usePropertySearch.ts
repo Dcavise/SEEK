@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, useCallback, useDeferredValue, useTransition, useRef } from 'react';
+import { useState, useCallback, useDeferredValue, useTransition, useRef, useMemo } from 'react';
 
 import { propertySearchService, type ExtendedFilterCriteria, type SearchResult } from '@/lib/propertySearchService';
 import type { Property } from '@/types/property';
@@ -54,6 +54,14 @@ const defaultSearchCriteria: ExtendedFilterCriteria = {
   limit: 500, // Increased for better map visualization
   sortBy: 'address',
   sortOrder: 'asc'
+};
+
+// CRITICAL FIX: Stable empty array reference to prevent infinite loops
+const EMPTY_PROPERTIES: Property[] = [];
+const EMPTY_FILTER_COUNTS = {
+  withFireSprinklers: 0,
+  byOccupancyClass: {},
+  byZonedByRight: {}
 };
 
 export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePropertySearchReturn => {
@@ -149,6 +157,10 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
     return propertySearchService.getPropertiesByZoning(zonedByRight, page, limit);
   }, []); // ✅ No dependencies, uses ref
 
+  // CRITICAL FIX: Memoize properties and filterCounts to prevent infinite re-renders
+  const memoizedProperties = useMemo(() => getMemoizedProperties(data), [data]);
+  const memoizedFilterCounts = useMemo(() => getMemoizedFilterCounts(data), [data]);
+  
   return {
     // Search state
     searchCriteria,
@@ -157,7 +169,7 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
     
     // Query results
     data,
-    properties: data?.properties || [],
+    properties: memoizedProperties, // ✅ Stable reference - won't create new arrays
     isLoading,
     isError,
     error: error as Error | null,
@@ -176,17 +188,22 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
     refetch,
     
     // Filter stats
-    filterCounts: data?.filters.counts || {
-      withFireSprinklers: 0,
-      byOccupancyClass: {},
-      byZonedByRight: {}
-    },
+    filterCounts: memoizedFilterCounts, // ✅ Stable reference - won't create new objects
     
     // Convenience methods
     getPropertiesWithFireSprinklers,
     getPropertiesByOccupancyClass,
     getPropertiesByZoning
   };
+};
+
+// CRITICAL FIX: Memoized properties to prevent creating new arrays on each render
+const getMemoizedProperties = (data: SearchResult | undefined): Property[] => {
+  return data?.properties || EMPTY_PROPERTIES;
+};
+
+const getMemoizedFilterCounts = (data: SearchResult | undefined) => {
+  return data?.filters.counts || EMPTY_FILTER_COUNTS;
 };
 
 // Helper hook for FOIA statistics
