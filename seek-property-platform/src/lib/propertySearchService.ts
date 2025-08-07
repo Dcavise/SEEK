@@ -582,6 +582,7 @@ export class PropertySearchService {
       }
 
       // Use the same data transformation as searchProperties for consistency
+      console.log('Raw property data from database:', property);
       const transformedProperty = this.transformRawPropertyToUI(property);
 
       console.log('Successfully fetched property:', transformedProperty);
