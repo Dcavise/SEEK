@@ -2,5 +2,11 @@
   "buildCommand": "cd seek-property-platform && npm run build",
   "outputDirectory": "seek-property-platform/dist",
   "installCommand": "cd seek-property-platform && npm install",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
