@@ -170,10 +170,19 @@ export class PropertySearchService {
       sortOrder = 'asc'
     } = sanitizedCriteria;
 
-    // Build the base query
+    // Build the base query with related city and county names
     let query = supabase
       .from('parcels')
-      .select('*', { count: 'exact' });
+      .select(`
+        *,
+        cities!city_id (
+          name,
+          state
+        ),
+        counties!county_id (
+          name
+        )
+      `, { count: 'exact' });
 
     // Apply geographic filters
     if (city) {
@@ -294,8 +303,11 @@ export class PropertySearchService {
 
     const totalPages = Math.ceil((count || 0) / limit);
 
+    // Transform raw database data to UI-compatible Property objects
+    const transformedProperties = (properties || []).map(rawProperty => this.transformRawPropertyToUI(rawProperty));
+
     return {
-      properties: properties || [],
+      properties: transformedProperties,
       total: count || 0,
       page,
       limit,
@@ -305,6 +317,67 @@ export class PropertySearchService {
         counts: filterCounts
       }
     };
+  }
+
+  /**
+   * Transform raw database property to UI-compatible Property interface
+   * This ensures consistent data structure across all property retrieval methods
+   */
+  private transformRawPropertyToUI(rawProperty: any): Property {
+    return {
+      // Core database fields (keep as-is)
+      id: rawProperty.id,
+      parcel_number: rawProperty.parcel_number || '',
+      address: rawProperty.address || '',
+      city_id: rawProperty.city_id,
+      county_id: rawProperty.county_id,
+      state_id: rawProperty.state_id,
+      latitude: rawProperty.latitude || 0,
+      longitude: rawProperty.longitude || 0,
+      lot_size: rawProperty.lot_size,
+      owner_name: rawProperty.owner_name,
+      property_value: rawProperty.property_value,
+      zoned_by_right: rawProperty.zoned_by_right,
+      occupancy_class: rawProperty.occupancy_class,
+      fire_sprinklers: rawProperty.fire_sprinklers,
+      created_at: rawProperty.created_at || new Date().toISOString(),
+      updated_at: rawProperty.updated_at || new Date().toISOString(),
+      geom: rawProperty.geom || null,
+      updated_by: rawProperty.updated_by || null,
+      
+      // Computed fields for UI compatibility
+      city: rawProperty.cities?.name || rawProperty.city_name || '',
+      state: rawProperty.cities?.state || rawProperty.state_code || '',
+      county: rawProperty.counties?.name || rawProperty.county_name || '',
+      zip_code: '', // Not available in current schema
+      square_feet: rawProperty.lot_size, // Map lot_size to square_feet for backward compatibility
+      parcel_sq_ft: rawProperty.lot_size, // Legacy field mapping
+      property_type: 'Unknown', // Not available in current schema
+      zoning_code: null, // Not available in current schema
+      folio_int: null, // Not available in current schema
+      
+      // CRITICAL FIX: Map database fields to UI-expected field names
+      current_occupancy: rawProperty.occupancy_class, // Map occupancy_class -> current_occupancy
+      fire_sprinkler_status: rawProperty.fire_sprinklers === true ? 'yes' : 
+                           rawProperty.fire_sprinklers === false ? 'no' : null, // Map fire_sprinklers -> fire_sprinkler_status
+      zoning_by_right: rawProperty.zoned_by_right === 'yes' ? true :
+                      rawProperty.zoned_by_right === 'no' ? false :
+                      rawProperty.zoned_by_right === 'special-exemption' ? 'special-exemption' :
+                      null, // Map zoned_by_right -> zoning_by_right with type conversion
+      
+      // Legacy fields for UI compatibility
+      status: 'new',
+      assigned_to: null,
+      notes: null,
+      
+      // Legacy sync fields
+      sync_status: null,
+      last_synced_at: null,
+      external_system_id: null,
+      sync_error: null,
+      municipal_zoning_url: null,
+      city_portal_url: null
+    } as Property;
   }
 
   /**
