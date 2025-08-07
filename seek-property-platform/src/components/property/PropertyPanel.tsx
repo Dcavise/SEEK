@@ -312,7 +312,7 @@ export function PropertyPanel({
             {property.address}
           </h2>
           <p className="text-sm text-[#6B7280] mt-1">
-            {property.city}, {property.state} {property.zip_code}
+            {property.city}, {property.state}{property.zip_code ? ` ${property.zip_code}` : ''}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className="text-xs text-[#6B7280]">Parcel:</span>
@@ -585,31 +585,31 @@ export function PropertyPanel({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-xs text-[#6B7280] mb-1">Parcel Sq Ft</div>
-              {editingFields.has('parcel_sq_ft') ? (
+              {editingFields.has('lot_size') ? (
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    value={tempValues.parcel_sq_ft || ''}
-                    onChange={(e) => setTempValues(prev => ({ ...prev, parcel_sq_ft: e.target.value ? parseInt(e.target.value) : null }))}
+                    value={tempValues.lot_size || ''}
+                    onChange={(e) => setTempValues(prev => ({ ...prev, lot_size: e.target.value ? parseInt(e.target.value) : null }))}
                     className="text-sm flex-1"
                   />
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0 hover:bg-gray-100"
-                    onClick={() => saveEdit('parcel_sq_ft')}
+                    onClick={() => saveEdit('lot_size')}
                   >
                     <Check className="h-3 w-3" />
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#1A1A1A]">{property.parcel_sq_ft?.toLocaleString() || 'N/A'}</span>
+                  <span className="text-sm text-[#1A1A1A]">{property.lot_size?.toLocaleString() || 'N/A'}</span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0 hover:bg-gray-100"
-                    onClick={() => startEditing('parcel_sq_ft')}
+                    onClick={() => startEditing('lot_size')}
                   >
                     <Edit className="h-3 w-3" />
                   </Button>
@@ -685,37 +685,12 @@ export function PropertyPanel({
             </div>
             <div>
               <div className="text-xs text-[#6B7280] mb-1">Zoning Code</div>
-              {editingFields.has('zoning_code') ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="text"
-                    value={tempValues.zoning_code || ''}
-                    onChange={(e) => setTempValues(prev => ({ ...prev, zoning_code: e.target.value || null }))}
-                    className="text-sm flex-1"
-                    placeholder="Enter zoning code"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-gray-100"
-                    onClick={() => saveEdit('zoning_code')}
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[#6B7280] italic">Not available in database</span>
+                <div className="text-xs text-[#6B7280]">
+                  Use zoning compliance above
                 </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#1A1A1A]">{property.zoning_code || 'N/A'}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-gray-100"
-                    onClick={() => startEditing('zoning_code')}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+              </div>
             </div>
             
             <div>

@@ -325,16 +325,16 @@ export class PropertySearchService {
    */
   private transformRawPropertyToUI(rawProperty: any): Property {
     return {
-      // Core database fields (keep as-is)
+      // Core database fields (mapped to actual CSV column names)
       id: rawProperty.id,
       parcel_number: rawProperty.parcel_number || '',
-      address: rawProperty.address || '',
+      address: rawProperty.property_address || rawProperty.address || '', // CSV uses property_address
       city_id: rawProperty.city_id,
       county_id: rawProperty.county_id,
       state_id: rawProperty.state_id,
       latitude: rawProperty.latitude || 0,
       longitude: rawProperty.longitude || 0,
-      lot_size: rawProperty.lot_size,
+      lot_size: rawProperty.parcel_sqft || rawProperty.lot_size, // CSV uses parcel_sqft
       owner_name: rawProperty.owner_name,
       property_value: rawProperty.property_value,
       zoned_by_right: rawProperty.zoned_by_right,
@@ -345,18 +345,18 @@ export class PropertySearchService {
       geom: rawProperty.geom || null,
       updated_by: rawProperty.updated_by || null,
       
-      // Computed fields for UI compatibility
-      city: rawProperty.cities?.name || rawProperty.city_name || '',
-      state: rawProperty.cities?.state || rawProperty.state_code || '',
-      county: rawProperty.counties?.name || rawProperty.county_name || '',
-      zip_code: '', // Not available in current schema
-      square_feet: rawProperty.lot_size, // Map lot_size to square_feet for backward compatibility
-      parcel_sq_ft: rawProperty.lot_size, // Legacy field mapping
+      // Database column mappings with fallbacks (after schema update)
+      city: rawProperty.cities?.name || rawProperty.city || '',
+      state: rawProperty.cities?.state || rawProperty.state || 'TX',
+      county: rawProperty.counties?.name || rawProperty.county || '',
+      zip_code: rawProperty.zip_code || '', // NEW: Direct database column
+      square_feet: rawProperty.parcel_sqft || rawProperty.lot_size || null, // NEW: Use parcel_sqft from database
+      parcel_sq_ft: rawProperty.parcel_sqft || rawProperty.lot_size || null, // NEW: Direct database column
       property_type: 'Unknown', // Not available in current schema
-      zoning_code: null, // Not available in current schema
+      zoning_code: rawProperty.zoning_code || null, // NEW: Direct database column
       folio_int: null, // Not available in current schema
       
-      // CRITICAL FIX: Map database fields to UI-expected field names
+      // FOIA fields mapping (these may be added via FOIA updates)
       current_occupancy: rawProperty.occupancy_class, // Map occupancy_class -> current_occupancy
       fire_sprinkler_status: rawProperty.fire_sprinklers === true ? 'yes' : 
                            rawProperty.fire_sprinklers === false ? 'no' : null, // Map fire_sprinklers -> fire_sprinkler_status

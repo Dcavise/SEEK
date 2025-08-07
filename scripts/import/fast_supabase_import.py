@@ -277,6 +277,11 @@ class FastSupabaseImporter:
                 latitude = self._parse_numeric(row, ['latitude', 'lat', 'y', 'y_coord', 'northing'])
                 longitude = self._parse_numeric(row, ['longitude', 'lng', 'lon', 'x', 'x_coord', 'easting'])
                 
+                # NEW: Extract missing CSV columns
+                zoning_code = self._get_column_value(row, ['zoning_code', 'zoning', 'zone', 'zoning_class'])
+                parcel_sqft = self._parse_numeric(row, ['parcel_sqft', 'll_gissqft', 'gis_sqft', 'sqft', 'lot_sqft'])
+                zip_code = self._get_column_value(row, ['zip_code', 'szip5', 'zipcode', 'postal_code', 'zip'])
+                
                 # Validate required fields
                 if not parcel_number or not address:
                     continue
@@ -293,6 +298,10 @@ class FastSupabaseImporter:
                     # Coordinate fields
                     'latitude': latitude,
                     'longitude': longitude,
+                    # NEW: Missing CSV columns from original data
+                    'zoning_code': str(zoning_code)[:50] if zoning_code else None,
+                    'parcel_sqft': parcel_sqft,
+                    'zip_code': str(zip_code)[:10] if zip_code else None,
                     # FOIA fields - set to None for now
                     'zoned_by_right': None,
                     'occupancy_class': None,
