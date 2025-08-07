@@ -578,62 +578,8 @@ export class PropertySearchService {
         return null;
       }
 
-      // Transform to match Property interface
-      const transformedProperty: Property = {
-        id: property.id,
-        parcel_number: property.parcel_number || '',
-        address: property.address || '',
-        city_id: property.city_id,
-        county_id: property.county_id,
-        state_id: property.state_id,
-        latitude: property.latitude || 0,
-        longitude: property.longitude || 0,
-        lot_size: property.lot_size,
-        owner_name: property.owner_name,
-        property_value: property.property_value,
-        zoned_by_right: property.zoned_by_right,
-        occupancy_class: property.occupancy_class,
-        fire_sprinklers: property.fire_sprinklers,
-        created_at: property.created_at || new Date().toISOString(),
-        updated_at: property.updated_at || new Date().toISOString(),
-        geom: null,
-        updated_by: null,
-        
-        // Computed fields for UI compatibility
-        city: (property as any).cities?.name || '',
-        state: (property as any).cities?.state || '',
-        county: (property as any).counties?.name || '',
-        zip_code: '', // Not available in current schema
-        square_feet: property.lot_size, // Map lot_size to square_feet for backward compatibility
-        parcel_sq_ft: property.lot_size, // Legacy field mapping
-        property_type: 'Unknown', // Not available in current schema
-        zoning_code: null, // Not available in current schema
-        folio_int: null, // Not available in current schema
-        
-        // Legacy fields for UI compatibility
-        current_occupancy: property.occupancy_class,
-        status: 'new',
-        assigned_to: null,
-        notes: null,
-        
-        // Fire sprinkler status mapping for UI
-        fire_sprinkler_status: property.fire_sprinklers === true ? 'yes' : 
-                             property.fire_sprinklers === false ? 'no' : null,
-        
-        // Zoning by right mapping for UI  
-        zoning_by_right: property.zoned_by_right === 'yes' ? true :
-                        property.zoned_by_right === 'no' ? false :
-                        property.zoned_by_right === 'special-exemption' ? 'special-exemption' :
-                        null,
-        
-        // Legacy sync fields
-        sync_status: null,
-        last_synced_at: null,
-        external_system_id: null,
-        sync_error: null,
-        municipal_zoning_url: null,
-        city_portal_url: null
-      };
+      // Use the same data transformation as searchProperties for consistency
+      const transformedProperty = this.transformRawPropertyToUI(property);
 
       console.log('Successfully fetched property:', transformedProperty);
       return transformedProperty;
