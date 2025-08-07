@@ -37,6 +37,8 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
     startTransition(() => {
       setCurrentView('city-search');
     });
+    // Call the parent callback to notify that city search mode is starting
+    // This allows the parent to handle any necessary setup
   };
 
   const handleAddressSearchStart = () => {
@@ -57,9 +59,10 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
     const fullCityName = `${cityName}, ${state}`;
     setSearchQuery(fullCityName);
     
-    // Brief delay to show selection, then close overlay
+    // Brief delay to show selection, then trigger city selection callback and close overlay
     setTimeout(() => {
       onCitySelected?.(fullCityName);
+      // Close the overlay by calling the city search click handler
       onCitySearchClick();
     }, 200);
   };
@@ -199,11 +202,6 @@ export function SearchOverlay({ onCitySearchClick, onAddressSearchClick, onCityS
                         <span className="text-foreground">
                           {highlightMatch(city.name, searchQuery)}, {city.state}
                         </span>
-                        {city.county && (
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {city.county} County
-                          </div>
-                        )}
                       </div>
                     </button>
                   ))}

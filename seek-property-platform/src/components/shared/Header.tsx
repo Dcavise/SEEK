@@ -1,10 +1,11 @@
 import { ChevronDown, Filter, Upload, Map, List, Search, MapPin, Loader2 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCitySearch } from '@/hooks/useCitySearch';
+import { useCurrentCity } from '@/hooks/useCurrentCity';
 import { PropertyFilters } from '@/components/filters/PropertyFilters';
 import { FOIAFilters } from '@/lib/propertySearchService';
 
@@ -21,6 +22,9 @@ interface HeaderProps {
   onFOIAFiltersChange?: (filters: FOIAFilters) => void;
 }
 
+// Memoize the PropertyFilters component to prevent unnecessary re-renders
+const MemoizedPropertyFilters = memo(PropertyFilters);
+
 export function Header({ 
   onFiltersClick, 
   activeFilterCount = 0,
@@ -36,35 +40,50 @@ export function Header({
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   
+  // Use ref to maintain stable reference to the callback
+  const onFOIAFiltersChangeRef = useRef(onFOIAFiltersChange);
+  onFOIAFiltersChangeRef.current = onFOIAFiltersChange;
+  
+  // Get current city context from properties
+  const currentCity = useCurrentCity();
+  
   // Use database city search instead of hardcoded cities
   const { cities, loading, error, isStale } = useCitySearch(searchValue);
   const shouldShowDropdown = showDropdown && searchValue.length >= 2 && (cities.length > 0 || loading);
 
-  const handleSearch = (cityName: string, state: string) => {
+
+  // Stable callback for FOIA filters that uses ref
+  const handleFOIAFiltersChange = useCallback((filters: FOIAFilters) => {
+    if (onFOIAFiltersChangeRef.current) {
+      onFOIAFiltersChangeRef.current(filters);
+    }
+  }, []); // Empty deps for stable reference
+
+  const handleSearch = useCallback((cityName: string, state: string) => {
     const fullCityName = `${cityName}, ${state}`;
     if (onCitySearch) {
       onCitySearch(fullCityName);
       setSearchValue('');
       setShowDropdown(false);
     }
-  };
+  }, [onCitySearch]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchValue(value);
     setShowDropdown(value.length >= 2);
-  };
+  }, []);
 
-  const handleInputFocus = () => {
+  const handleInputFocus = useCallback(() => {
     setShowDropdown(searchValue.length >= 2);
-  };
+  }, [searchValue.length]);
 
-  const handleInputBlur = () => {
+  const handleInputBlur = useCallback(() => {
     // Delay hiding dropdown to allow clicks
     setTimeout(() => setShowDropdown(false), 200);
-  };
+  }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       
@@ -84,9 +103,9 @@ export function Header({
         handleSearch(firstCity.name, firstCity.state);
       }
     }
-  };
+  }, [searchValue, cities, loading, onCitySearch, handleSearch]);
 
-  const highlightMatch = (text: string, query: string) => {
+  const highlightMatch = useCallback((text: string, query: string) => {
     if (!query || query.length < 2) return text;
     
     const index = text.toLowerCase().indexOf(query.toLowerCase());
@@ -101,7 +120,32 @@ export function Header({
         {text.substring(index + query.length)}
       </>
     );
-  };
+  }, []);
+
+  // Memoize city dropdown items to prevent re-renders
+  const cityDropdownItems = React.useMemo(() => {
+    if (!cities || cities.length === 0) return null;
+    
+    return cities.map((city) => (
+      <div
+        key={city.id}
+        onClick={() => handleSearch(city.name, city.state)}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
+      >
+        <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+        <div className="flex-1">
+          <span>
+            {highlightMatch(city.name, searchValue)}, {city.state}
+          </span>
+          {city.county_id && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              County ID: {city.county_id}
+            </div>
+          )}
+        </div>
+      </div>
+    ));
+  }, [cities, searchValue, handleSearch, highlightMatch]);
   
   return (
     <header className="fixed top-0 left-0 right-0 z-20 h-14 bg-white border-b border-gray-200 shadow-sm">
@@ -129,10 +173,16 @@ export function Header({
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
                   onKeyDown={handleKeyDown}
-                  className={`w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200 ${
+                  className={`w-full pl-10 ${currentCity ? 'pr-20' : 'pr-4'} py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200 ${
                     isStale ? 'ring-2 ring-yellow-200 bg-yellow-50' : ''
                   }`}
                 />
+                {/* City context indicator */}
+                {currentCity && !loading && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+                    in <span className="font-medium text-gray-700">{currentCity}</span>
+                  </div>
+                )}
                 {/* Loading indicator */}
                 {loading && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -165,33 +215,15 @@ export function Header({
                     </div>
                   )}
                   
-                  {!loading && cities.map((city) => (
-                    <div
-                      key={city.id}
-                      onClick={() => handleSearch(city.name, city.state)}
-                      className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <div className="flex-1">
-                        <span>
-                          {highlightMatch(city.name, searchValue)}, {city.state}
-                        </span>
-                        {city.county_id && (
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            County ID: {city.county_id}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  {!loading && cityDropdownItems}
                 </div>
               )}
             </div>
             
-            {/* Compact FOIA Filters */}
+            {/* Compact FOIA Filters - Use memoized component */}
             {onFOIAFiltersChange && (
               <div className="flex-1 min-w-0">
-                <PropertyFilters onFiltersChange={onFOIAFiltersChange} />
+                <MemoizedPropertyFilters onFiltersChange={handleFOIAFiltersChange} />
               </div>
             )}
           </div>

@@ -11,7 +11,7 @@ import { chunkSplitPlugin } from 'vite-plugin-chunk-split';
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8081,
     hmr: {
       overlay: true,
     },

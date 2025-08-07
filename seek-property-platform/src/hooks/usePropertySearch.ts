@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, useCallback, useDeferredValue, useTransition } from 'react';
+import { useState, useCallback, useDeferredValue, useTransition, useRef } from 'react';
 
 import { propertySearchService, type ExtendedFilterCriteria, type SearchResult } from '@/lib/propertySearchService';
 import type { Property } from '@/types/property';
@@ -69,8 +69,24 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
   const deferredSearchCriteria = useDeferredValue(searchCriteria);
   const [isPending, startTransition] = useTransition();
   
+  // FIXED: Use refs to maintain stable references for callbacks
+  const searchCriteriaRef = useRef(searchCriteria);
+  searchCriteriaRef.current = searchCriteria;
+  
   // Check if current search is stale (user typed faster than deferred updates)
   const isStale = searchCriteria !== deferredSearchCriteria;
+  
+  // Debug: Check if query should be enabled
+  const shouldEnable = enabled && (!!deferredSearchCriteria.city || !!deferredSearchCriteria.searchTerm || (!!deferredSearchCriteria.foiaFilters && Object.keys(deferredSearchCriteria.foiaFilters).length > 0));
+  
+  console.log('🔍 usePropertySearch debug:', {
+    enabled,
+    city: deferredSearchCriteria.city,
+    searchTerm: deferredSearchCriteria.searchTerm,
+    foiaFilters: deferredSearchCriteria.foiaFilters,
+    foiaFiltersKeys: deferredSearchCriteria.foiaFilters ? Object.keys(deferredSearchCriteria.foiaFilters) : [],
+    shouldEnable
+  });
 
   // Main search query using deferred criteria for better performance
   const {
@@ -82,16 +98,15 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
   } = useQuery({
     queryKey: ['propertySearch', deferredSearchCriteria], // Use deferred value
     queryFn: () => propertySearchService.searchProperties(deferredSearchCriteria),
-    enabled: enabled && (!!deferredSearchCriteria.city || !!deferredSearchCriteria.searchTerm || !!deferredSearchCriteria.foiaFilters),
+    enabled: shouldEnable,
     refetchOnWindowFocus,
     staleTime,
     retry: 2,
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
-  // Update search criteria with transitions for non-blocking updates
+  // FIXED: Stable callback - no dependencies, uses functional update
   const updateSearchCriteria = useCallback((newCriteria: Partial<ExtendedFilterCriteria>) => {
-    // 🚀 Use startTransition for non-urgent updates to prevent UI blocking
     startTransition(() => {
       setSearchCriteria(prev => ({
         ...prev,
@@ -100,36 +115,39 @@ export const usePropertySearch = (options: UsePropertySearchOptions = {}): UsePr
         page: newCriteria.page !== undefined ? newCriteria.page : 1
       }));
     });
-  }, [startTransition]);
+  }, []); // ✅ Empty dependency array for stable reference
 
-  // Clear all filters with transition
+  // FIXED: Stable callback - no dependencies, uses functional update
   const clearFilters = useCallback(() => {
     startTransition(() => {
-      setSearchCriteria({
+      setSearchCriteria(prev => ({
         ...defaultSearchCriteria,
-        city: searchCriteria.city, // Preserve city search
-        searchTerm: searchCriteria.searchTerm // Preserve search term
-      });
+        city: prev.city, // Preserve city search
+        searchTerm: prev.searchTerm // Preserve search term
+      }));
     });
-  }, [searchCriteria.city, searchCriteria.searchTerm, startTransition]);
+  }, []); // ✅ Empty dependency array for stable reference
 
   // Trigger search manually
   const searchProperties = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  // Convenience methods for FOIA-specific searches
+  // FIXED: Stable convenience methods using refs
   const getPropertiesWithFireSprinklers = useCallback(async (page = 1) => {
-    return propertySearchService.getPropertiesWithFireSprinklers(page, searchCriteria.limit || 50);
-  }, [searchCriteria.limit]);
+    const limit = searchCriteriaRef.current.limit || 50;
+    return propertySearchService.getPropertiesWithFireSprinklers(page, limit);
+  }, []); // ✅ No dependencies, uses ref
 
   const getPropertiesByOccupancyClass = useCallback(async (occupancyClass: string, page = 1) => {
-    return propertySearchService.getPropertiesByOccupancyClass(occupancyClass, page, searchCriteria.limit || 50);
-  }, [searchCriteria.limit]);
+    const limit = searchCriteriaRef.current.limit || 50;
+    return propertySearchService.getPropertiesByOccupancyClass(occupancyClass, page, limit);
+  }, []); // ✅ No dependencies, uses ref
 
   const getPropertiesByZoning = useCallback(async (zonedByRight: string | boolean, page = 1) => {
-    return propertySearchService.getPropertiesByZoning(zonedByRight, page, searchCriteria.limit || 50);
-  }, [searchCriteria.limit]);
+    const limit = searchCriteriaRef.current.limit || 50;
+    return propertySearchService.getPropertiesByZoning(zonedByRight, page, limit);
+  }, []); // ✅ No dependencies, uses ref
 
   return {
     // Search state

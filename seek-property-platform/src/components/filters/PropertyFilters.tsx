@@ -1,11 +1,11 @@
 // src/components/filters/PropertyFilters.tsx
-import { useState } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { ListFilter, X, Flame, Building, MapPin, Check } from "lucide-react";
-import { propertySearchService, type FOIAFilters } from "@/lib/propertySearchService";
+import { type FOIAFilters } from "@/lib/propertySearchService";
 
 // Match your exact database schema
 export enum FireSprinklerStatus {
@@ -41,19 +41,26 @@ interface ActiveFilter {
   label: string;
 }
 
-export function PropertyFilters({ onFiltersChange }: { 
-  onFiltersChange: (filters: FOIAFilters) => void 
-}) {
+interface PropertyFiltersProps {
+  onFiltersChange: (filters: FOIAFilters) => void;
+}
+
+export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [open, setOpen] = useState(false);
+  
+  // Use refs to prevent stale closures and avoid re-renders
+  const onFiltersChangeRef = useRef(onFiltersChange);
+  onFiltersChangeRef.current = onFiltersChange;
+  
+  // Track if we're in the middle of applying a filter to prevent loops
+  const isApplyingFilter = useRef(false);
 
-  const applyFilter = (filter: ActiveFilter) => {
-    const newFilters = [...activeFilters.filter(f => f.type !== filter.type), filter];
-    setActiveFilters(newFilters);
-    
-    // Convert to FOIAFilters format
+  // Memoize the conversion logic
+  const convertToFOIAFilters = useCallback((filters: ActiveFilter[]): FOIAFilters => {
     const foiaFilters: FOIAFilters = {};
-    newFilters.forEach(f => {
+    
+    filters.forEach(f => {
       if (f.type === "fire_sprinklers") {
         foiaFilters.fire_sprinklers = f.value === "true" ? true : 
                                      f.value === "false" ? false : null;
@@ -64,41 +71,88 @@ export function PropertyFilters({ onFiltersChange }: {
       }
     });
     
-    onFiltersChange(foiaFilters);
-    setOpen(false);
-  };
+    return foiaFilters;
+  }, []);
 
-  const removeFilter = (filterType: string) => {
-    const newFilters = activeFilters.filter(f => f.type !== filterType);
-    setActiveFilters(newFilters);
+  // Notify parent of filter changes, but debounce to prevent rapid updates
+  useEffect(() => {
+    if (isApplyingFilter.current) {
+      isApplyingFilter.current = false;
+      return;
+    }
     
-    // Update FOIA filters
-    const foiaFilters: FOIAFilters = {};
-    newFilters.forEach(f => {
-      if (f.type === "fire_sprinklers") {
-        foiaFilters.fire_sprinklers = f.value === "true" ? true : 
-                                     f.value === "false" ? false : null;
-      } else if (f.type === "zoned_by_right") {
-        foiaFilters.zoned_by_right = f.value === "null" ? null : f.value;
-      } else if (f.type === "occupancy_class") {
-        foiaFilters.occupancy_class = f.value === "null" ? null : f.value;
-      }
+    const foiaFilters = convertToFOIAFilters(activeFilters);
+    const timeoutId = setTimeout(() => {
+      onFiltersChangeRef.current(foiaFilters);
+    }, 0); // Use setTimeout to break the synchronous update cycle
+    
+    return () => clearTimeout(timeoutId);
+  }, [activeFilters, convertToFOIAFilters]);
+
+  // Apply filter with proper state management
+  const applyFilter = useCallback((filter: ActiveFilter) => {
+    isApplyingFilter.current = true;
+    
+    setActiveFilters(prevFilters => {
+      // Remove existing filter of the same type and add new one
+      return [...prevFilters.filter(f => f.type !== filter.type), filter];
     });
     
-    onFiltersChange(foiaFilters);
-  };
+    // Close popover after a micro-task to avoid state conflicts
+    requestAnimationFrame(() => {
+      setOpen(false);
+    });
+  }, []);
 
-  const clearAll = () => {
+  // Remove filter with proper state management
+  const removeFilter = useCallback((filterType: string) => {
+    setActiveFilters(prevFilters => 
+      prevFilters.filter(f => f.type !== filterType)
+    );
+  }, []);
+
+  // Clear all filters
+  const clearAll = useCallback(() => {
     setActiveFilters([]);
-    onFiltersChange({});
-  };
+  }, []);
+
+  // Check if a filter is active (memoized for performance)
+  const hasFilter = useCallback((type: string, value: string) => {
+    return activeFilters.some(f => f.type === type && f.value === value);
+  }, [activeFilters]);
+
+  // Handle popover open state changes with debouncing
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    // Use requestAnimationFrame to ensure DOM updates are complete
+    requestAnimationFrame(() => {
+      setOpen(newOpen);
+    });
+  }, []);
+
+  // Memoize the filter items to prevent re-renders
+  const filterItems = useMemo(() => ({
+    fireSprinklers: [
+      { value: "true", label: "Has Sprinklers", color: "text-green-500" },
+      { value: "false", label: "No Sprinklers", color: "text-red-500" }
+    ],
+    zonedByRight: [
+      { value: "yes", label: "Yes", displayLabel: "Zoned: Yes", color: "text-green-500" },
+      { value: "no", label: "No", displayLabel: "Zoned: No", color: "text-red-500" },
+      { value: "special exemption", label: "Special Exemption", displayLabel: "Special Exemption", color: "text-yellow-500" }
+    ],
+    occupancyClasses: OCCUPANCY_CLASSES.map(c => ({
+      value: c,
+      label: c,
+      displayLabel: `Class: ${c}`
+    }))
+  }), []);
 
   return (
     <div className="flex items-center gap-2 flex-wrap min-w-0">
       {/* Active Filter Tags */}
       {activeFilters.map((filter) => (
         <Badge 
-          key={filter.type} 
+          key={`${filter.type}-${filter.value}`} 
           variant="secondary"
           className="gap-1 pr-1 flex-shrink-0 text-xs h-6"
         >
@@ -110,7 +164,11 @@ export function PropertyFilters({ onFiltersChange }: {
             variant="ghost"
             size="icon"
             className="h-4 w-4 ml-1 hover:bg-transparent flex-shrink-0"
-            onClick={() => removeFilter(filter.type)}
+            onClick={(e) => {
+              e.stopPropagation();
+              removeFilter(filter.type);
+            }}
+            aria-label={`Remove ${filter.label} filter`}
           >
             <X className="h-3 w-3" />
           </Button>
@@ -130,7 +188,7 @@ export function PropertyFilters({ onFiltersChange }: {
       )}
 
       {/* Add Filter Popover */}
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -141,91 +199,72 @@ export function PropertyFilters({ onFiltersChange }: {
             {activeFilters.length === 0 ? "Filters" : `(${activeFilters.length})`}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[220px] p-0">
+        <PopoverContent 
+          className="w-[220px] p-0" 
+          align="start"
+          sideOffset={5}
+          onInteractOutside={(e) => {
+            // Prevent closing when clicking on filter badges
+            const target = e.target as HTMLElement;
+            if (target.closest('.badge')) {
+              e.preventDefault();
+            }
+          }}
+        >
           <Command>
             <CommandList>
               {/* Fire Sprinklers */}
               <CommandGroup heading="Fire Sprinklers">
-                <CommandItem
-                  onSelect={() => applyFilter({
-                    type: "fire_sprinklers",
-                    value: "true",
-                    label: "Has Sprinklers"
-                  })}
-                >
-                  <Flame className="mr-2 h-4 w-4 text-green-500" />
-                  Has Sprinklers
-                  {activeFilters.find(f => f.type === "fire_sprinklers" && f.value === "true") && 
-                    <Check className="ml-auto h-4 w-4" />}
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => applyFilter({
-                    type: "fire_sprinklers",
-                    value: "false",
-                    label: "No Sprinklers"
-                  })}
-                >
-                  <Flame className="mr-2 h-4 w-4 text-red-500" />
-                  No Sprinklers
-                  {activeFilters.find(f => f.type === "fire_sprinklers" && f.value === "false") && 
-                    <Check className="ml-auto h-4 w-4" />}
-                </CommandItem>
+                {filterItems.fireSprinklers.map((item) => (
+                  <CommandItem
+                    key={`fire-sprinklers-${item.value}`}
+                    onSelect={() => applyFilter({
+                      type: "fire_sprinklers",
+                      value: item.value,
+                      label: item.label
+                    })}
+                  >
+                    <Flame className={`mr-2 h-4 w-4 ${item.color}`} />
+                    {item.label}
+                    {hasFilter("fire_sprinklers", item.value) && 
+                      <Check className="ml-auto h-4 w-4" />}
+                  </CommandItem>
+                ))}
               </CommandGroup>
 
               {/* Zoned By Right */}
               <CommandGroup heading="Zoned By Right">
-                <CommandItem
-                  onSelect={() => applyFilter({
-                    type: "zoned_by_right",
-                    value: "yes",
-                    label: "Zoned: Yes"
-                  })}
-                >
-                  <MapPin className="mr-2 h-4 w-4 text-green-500" />
-                  Yes
-                  {activeFilters.find(f => f.type === "zoned_by_right" && f.value === "yes") && 
-                    <Check className="ml-auto h-4 w-4" />}
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => applyFilter({
-                    type: "zoned_by_right",
-                    value: "no",
-                    label: "Zoned: No"
-                  })}
-                >
-                  <MapPin className="mr-2 h-4 w-4 text-red-500" />
-                  No
-                  {activeFilters.find(f => f.type === "zoned_by_right" && f.value === "no") && 
-                    <Check className="ml-auto h-4 w-4" />}
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => applyFilter({
-                    type: "zoned_by_right",
-                    value: "special exemption",
-                    label: "Special Exemption"
-                  })}
-                >
-                  <MapPin className="mr-2 h-4 w-4 text-yellow-500" />
-                  Special Exemption
-                  {activeFilters.find(f => f.type === "zoned_by_right" && f.value === "special exemption") && 
-                    <Check className="ml-auto h-4 w-4" />}
-                </CommandItem>
+                {filterItems.zonedByRight.map((item) => (
+                  <CommandItem
+                    key={`zoned-${item.value}`}
+                    onSelect={() => applyFilter({
+                      type: "zoned_by_right",
+                      value: item.value,
+                      label: item.displayLabel || item.label
+                    })}
+                  >
+                    <MapPin className={`mr-2 h-4 w-4 ${item.color}`} />
+                    {item.label}
+                    {hasFilter("zoned_by_right", item.value) && 
+                      <Check className="ml-auto h-4 w-4" />}
+                  </CommandItem>
+                ))}
               </CommandGroup>
 
               {/* Occupancy Class */}
               <CommandGroup heading="Occupancy Class">
-                {OCCUPANCY_CLASSES.map((className) => (
+                {filterItems.occupancyClasses.map((item) => (
                   <CommandItem
-                    key={className}
+                    key={`occupancy-${item.value}`}
                     onSelect={() => applyFilter({
                       type: "occupancy_class",
-                      value: className,
-                      label: `Class: ${className}`
+                      value: item.value,
+                      label: item.displayLabel
                     })}
                   >
                     <Building className="mr-2 h-4 w-4" />
-                    {className}
-                    {activeFilters.find(f => f.type === "occupancy_class" && f.value === className) && 
+                    {item.label}
+                    {hasFilter("occupancy_class", item.value) && 
                       <Check className="ml-auto h-4 w-4" />}
                   </CommandItem>
                 ))}

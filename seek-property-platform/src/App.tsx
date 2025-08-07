@@ -21,36 +21,39 @@ import TeamIndex from "./pages/team/index";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PropertyProvider } from "@/contexts/PropertyContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/property/:id" element={<PropertyDetail />} />
-          <Route path="/import" element={<ImportIndex />} />
-          <Route path="/import/mapping" element={<ImportMapping />} />
-          <Route path="/import/preview" element={<ImportPreview />} />
-          <Route path="/import/results" element={<ImportResults />} />
-          <Route path="/team" element={<TeamIndex />} />
-          <Route path="/team/assignments" element={<TeamAssignments />} />
-          <Route path="/analytics" element={<AnalyticsIndex />} />
-          <Route path="/analytics/pipeline" element={<AnalyticsPipeline />} />
-          <Route path="/settings/profile" element={<SettingsProfile />} />
-          <Route path="/foia-test" element={<FOIAImportTest />} />
-          <Route path="/foia-enhanced-review-test" element={<FOIAEnhancedReviewTest />} />
-          <Route path="/debug-csv-upload" element={<DebugCSVUpload />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-    <ReactQueryDevtools initialIsOpen={false} />
+    <PropertyProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/property/:id" element={<PropertyDetail />} />
+            <Route path="/import" element={<ImportIndex />} />
+            <Route path="/import/mapping" element={<ImportMapping />} />
+            <Route path="/import/preview" element={<ImportPreview />} />
+            <Route path="/import/results" element={<ImportResults />} />
+            <Route path="/team" element={<TeamIndex />} />
+            <Route path="/team/assignments" element={<TeamAssignments />} />
+            <Route path="/analytics" element={<AnalyticsIndex />} />
+            <Route path="/analytics/pipeline" element={<AnalyticsPipeline />} />
+            <Route path="/settings/profile" element={<SettingsProfile />} />
+            <Route path="/foia-test" element={<FOIAImportTest />} />
+            <Route path="/foia-enhanced-review-test" element={<FOIAEnhancedReviewTest />} />
+            <Route path="/debug-csv-upload" element={<DebugCSVUpload />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </PropertyProvider>
   </QueryClientProvider>
 );
 

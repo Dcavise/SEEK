@@ -558,7 +558,8 @@ git push origin main
   - ✅ Performance maintained at <25ms for basic queries
   - ✅ Database ready for FOIA filtering at scale (1.4M+ parcels)
 
-- **Task 3.2 COMPLETE**: FOIA-Enhanced Search API ✅
+- **
+ 3.2 COMPLETE**: FOIA-Enhanced Search API ✅
   - ✅ **PropertySearchService**: Complete FOIA filtering API with validation
   - ✅ **FOIA Filter Parameters**: fire_sprinklers, zoned_by_right, occupancy_class
   - ✅ **Input Validation & Sanitization**: SQL injection prevention, type checking

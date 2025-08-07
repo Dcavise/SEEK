@@ -312,7 +312,7 @@ export function PropertyPanel({
             {property.address}
           </h2>
           <p className="text-sm text-[#6B7280] mt-1">
-            {property.city}, {property.state} {property.zip}
+            {property.city}, {property.state} {property.zip_code}
           </p>
           <div className="flex items-center gap-2 mt-2">
             <span className="text-xs text-[#6B7280]">Parcel:</span>

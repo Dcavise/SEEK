@@ -1,6 +1,6 @@
 import { Map, List } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { QuickFilterOverlay } from '@/components/filters/QuickFilterOverlay';
 import { MapView } from '@/components/map/MapView';
@@ -11,6 +11,7 @@ import { PropertyTable } from '@/components/table/PropertyTable';
 import { Button } from '@/components/ui/button';
 import { usePropertySearch } from '@/hooks/usePropertySearch';
 import { useURLFilters } from '@/hooks/useURLFilters';
+import { usePropertyContext } from '@/contexts/PropertyContext';
 import { ExtendedFilterCriteria, FOIAFilters } from '@/lib/propertySearchService';
 import { Property } from '@/types/property';
 
@@ -18,6 +19,10 @@ import { Property } from '@/types/property';
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get property context for city tracking
+  const { setProperties } = usePropertyContext();
   
   // Use URL-synchronized filters and view state
   const { 
@@ -29,6 +34,10 @@ const Index = () => {
     hasActiveFilters,
     isInitializing 
   } = useURLFilters();
+  
+  // Keep a ref to current filters to avoid stale closures
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
   
   const [isEmptyState, setIsEmptyState] = useState<boolean>(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -50,13 +59,29 @@ const Index = () => {
     enabled: !isEmptyState && (!!filters.city || !!filters.foiaFilters)
   });
 
-  // Initialize empty state based on URL parameters
+  // FIXED: Initialize empty state and update search criteria properly
   useEffect(() => {
-    if (hasActiveFilters() && isEmptyState) {
+    // Check if we have valid filters from URL and should exit empty state
+    const hasValidFilters = filters.city || (filters.foiaFilters && Object.keys(filters.foiaFilters).length > 0);
+    
+    if (hasValidFilters && isEmptyState) {
+      console.log('🔄 Initializing from URL filters:', filters);
+      console.log('🔄 FOIA filters detail:', filters.foiaFilters);
       setIsEmptyState(false);
+    }
+  }, [filters.city, filters.foiaFilters, isEmptyState]); // ✅ Removed updateSearchCriteria from dependencies
+  
+  // FIXED: Separate effect to handle filter changes after initial load
+  useEffect(() => {
+    if (!isEmptyState && (filters.city || filters.foiaFilters)) {
       updateSearchCriteria(filters);
     }
-  }, [hasActiveFilters, isEmptyState, filters, updateSearchCriteria]);
+  }, [filters, isEmptyState, updateSearchCriteria]); // ✅ Use entire filters object to reduce re-renders
+
+  // Update property context when properties change
+  useEffect(() => {
+    setProperties(properties);
+  }, [properties, setProperties]);
 
   // Auto-select first property only in table view or when explicitly needed
   // DO NOT auto-select in map view to prevent unwanted zooming to individual properties
@@ -66,58 +91,45 @@ const Index = () => {
     }
   }, [properties, selectedProperty, currentView]);
 
-  // Handle overload mode for large result sets - DISABLED to always show individual markers
+  // Handle overload mode for large result sets - DISABLED
   useEffect(() => {
-    // Overload mode disabled - always use individual property markers
     setIsOverloadMode(false);
     setShowQuickFilter(false);
-    
-    // Keep the view update logic for very large datasets if needed
-    // if (totalProperties >= 2000) {
-    //   setIsOverloadMode(true);
-    //   setShowQuickFilter(true);
-    //   updateView('map');
-    // }
-  }, [totalProperties, updateView]);
+  }, [totalProperties]);
 
 
-  const handleCitySearch = () => {
-    // This will be called when overlay closes
-    // Loading state is managed by usePropertySearch hook
-    
-    // Exit empty state - properties will be loaded by the hook
-    setTimeout(() => {
-      setIsEmptyState(false);
-    }, 1500);
+  const handleCitySearchClose = () => {
+    // This will be called when the city search overlay closes
+    // The actual city selection and search are handled by handleCitySelected
+    // We don't need to do anything here since the city selection will trigger the search
   };
 
-  const handleCitySelected = (city: string) => {
+  // FIXED: Stable callback with useCallback and proper dependencies
+  const handleCitySelected = useCallback((city: string) => {
     console.log('🏙️ City selected for real FOIA search:', city);
     
     // Clear any existing property selection to prevent unwanted zoom
     setSelectedProperty(null);
     
     // Update search criteria with the selected city using URL-synchronized function
-    const newFilters = {
-      ...filters,
+    updateFilters({
+      ...filtersRef.current,
       city: city
-    };
-    updateFilters(newFilters); // This will update both state and URL
-    updateSearchCriteria(newFilters);
+    });
     
-    // Exit empty state
+    // Exit empty state - this will hide the SearchOverlay
     setIsEmptyState(false);
     
     console.log('🗺️ handleCitySelected complete:', {
       city,
-      newFilters,
-      isEmptyState: false,
-      propertiesLength: properties.length
+      newFilters: { ...filtersRef.current, city },
+      isEmptyState: false
     });
-  };
+  }, [updateFilters]); // ✅ Only depend on updateFilters
 
-  const handleAddressSearch = () => {
-    console.log('Address search clicked');
+  const handleAddressSearchClose = () => {
+    // This will be called when the address search overlay closes
+    console.log('Address search overlay closed');
     setIsEmptyState(false);
   };
 
@@ -131,14 +143,13 @@ const Index = () => {
     });
   };
 
-  const handleFOIAFiltersChange = (foiaFilters: FOIAFilters) => {
-    const newFilters = {
-      ...filters,
+  // FIXED: Stable callback using refs and minimal dependencies
+  const handleFOIAFiltersChange = useCallback((foiaFilters: FOIAFilters) => {
+    updateFilters({
+      ...filtersRef.current,
       foiaFilters: foiaFilters
-    };
-    updateFilters(newFilters); // This will update both state and URL
-    updateSearchCriteria(newFilters);
-  };
+    });
+  }, [updateFilters]); // ✅ Only depend on updateFilters
 
   const handleViewToggle = (view: 'map' | 'table') => {
     updateView(view); // This will update both state and URL
@@ -192,7 +203,10 @@ const Index = () => {
     showPropertiesView,
     isLoading,
     city: filters.city,
-    searchCriteria: searchCriteria?.city || 'none'
+    foiaFilters: filters.foiaFilters,
+    searchCriteria: searchCriteria?.city || 'none',
+    searchCriteriaFoia: searchCriteria?.foiaFilters || 'none',
+    hasValidFilters: filters.city || (filters.foiaFilters && Object.keys(filters.foiaFilters).length > 0)
   });
 
   return (
@@ -289,8 +303,8 @@ const Index = () => {
       {/* Search Overlay - Only show in empty state and not loading */}
       {isEmptyState && !isLoading && (
         <SearchOverlay
-          onCitySearchClick={handleCitySearch}
-          onAddressSearchClick={handleAddressSearch}
+          onCitySearchClick={handleCitySearchClose}
+          onAddressSearchClick={handleAddressSearchClose}
           onCitySelected={handleCitySelected}
         />
       )}

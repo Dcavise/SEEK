@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ExtendedFilterCriteria, FOIAFilters } from '@/lib/propertySearchService';
 
@@ -36,10 +36,18 @@ export function useURLFilters() {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<ExtendedFilterCriteria>(defaultFilters);
   const [currentView, setCurrentView] = useState<'map' | 'table'>('map');
+  
+  // Use ref to avoid stale closures in callbacks  
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
 
-  // Parse URL parameters into filter state
-  const parseURLParams = useCallback((): { filters: ExtendedFilterCriteria; view: 'map' | 'table' } => {
+
+
+  // Initialize filters from URL on component mount AND listen for URL changes
+  useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
+    console.log('🔍 useURLFilters - parsing URL:', location.search);
+    console.log('🔍 useURLFilters - searchParams:', Array.from(searchParams.entries()));
     
     const parsedFilters: ExtendedFilterCriteria = { ...defaultFilters };
     
@@ -62,6 +70,7 @@ export function useURLFilters() {
     
     // Zoned by right: string value or null
     const zonedByRight = searchParams.get('zoned_by_right');
+    console.log('🔍 useURLFilters - zonedByRight from URL:', zonedByRight);
     if (zonedByRight) {
       foiaFilters.zoned_by_right = decodeURIComponent(zonedByRight);
     }
@@ -72,93 +81,117 @@ export function useURLFilters() {
       foiaFilters.occupancy_class = decodeURIComponent(occupancyClass);
     }
     
+    console.log('🔍 useURLFilters - final foiaFilters:', foiaFilters);
     parsedFilters.foiaFilters = foiaFilters;
     
     // Parse view parameter
     const view = searchParams.get('view');
     const parsedView: 'map' | 'table' = (view === 'table') ? 'table' : 'map';
     
-    return { filters: parsedFilters, view: parsedView };
-  }, [location.search]);
+    console.log('🔍 useURLFilters - final parsedFilters:', parsedFilters);
+    setFilters(parsedFilters);
+    setCurrentView(parsedView);
+  }, [location.search]); // STABLE: Only depends on location.search
 
-  // Update URL parameters when filters change
-  const updateURLParams = useCallback((newFilters: ExtendedFilterCriteria, newView?: 'map' | 'table') => {
-    const searchParams = new URLSearchParams();
-    
-    // Add city parameter
-    if (newFilters.city) {
-      searchParams.set('city', encodeURIComponent(newFilters.city));
-    }
-    
-    // Add FOIA filter parameters
-    const foiaFilters = newFilters.foiaFilters || {};
-    
-    if (foiaFilters.fire_sprinklers === true) {
-      searchParams.set('fire_sprinklers', 'true');
-    } else if (foiaFilters.fire_sprinklers === false) {
-      searchParams.set('fire_sprinklers', 'false');
-    }
-    
-    if (foiaFilters.zoned_by_right) {
-      searchParams.set('zoned_by_right', encodeURIComponent(foiaFilters.zoned_by_right));
-    }
-    
-    if (foiaFilters.occupancy_class) {
-      searchParams.set('occupancy_class', encodeURIComponent(foiaFilters.occupancy_class));
-    }
-    
-    // Add view parameter if not default
-    const viewToUse = newView || currentView;
-    if (viewToUse === 'table') {
-      searchParams.set('view', 'table');
-    }
-    
-    // Update URL without triggering a page reload
-    const newSearch = searchParams.toString();
-    const newPath = newSearch ? `${location.pathname}?${newSearch}` : location.pathname;
-    
-    // Only navigate if URL actually changed
-    if (newPath !== `${location.pathname}${location.search}`) {
-      navigate(newPath, { replace: true });
-    }
-  }, [navigate, location.pathname, location.search, currentView]);
-
-  // Initialize filters from URL on component mount
-  useEffect(() => {
-    const { filters: urlFilters, view: urlView } = parseURLParams();
-    setFilters(urlFilters);
-    setCurrentView(urlView);
-  }, []); // Only run once on mount
-
-  // Listen for URL changes (browser back/forward)
-  useEffect(() => {
-    const { filters: urlFilters, view: urlView } = parseURLParams();
-    setFilters(urlFilters);
-    setCurrentView(urlView);
-  }, [location.search, parseURLParams]);
-
-  // Update filters and sync to URL
+  // Update filters and sync to URL - STABLE REFERENCE
   const updateFilters = useCallback((newFilters: ExtendedFilterCriteria) => {
     setFilters(newFilters);
-    updateURLParams(newFilters);
-  }, [updateURLParams]);
+    filtersRef.current = newFilters; // Update ref immediately
+    
+    // Build URL in a microtask to ensure state has settled
+    Promise.resolve().then(() => {
+      const searchParams = new URLSearchParams();
+      
+      if (newFilters.city) {
+        searchParams.set('city', encodeURIComponent(newFilters.city));
+      }
+      
+      const foiaFilters = newFilters.foiaFilters || {};
+      if (foiaFilters.fire_sprinklers === true) {
+        searchParams.set('fire_sprinklers', 'true');
+      } else if (foiaFilters.fire_sprinklers === false) {
+        searchParams.set('fire_sprinklers', 'false');
+      }
+      
+      if (foiaFilters.zoned_by_right) {
+        searchParams.set('zoned_by_right', encodeURIComponent(foiaFilters.zoned_by_right));
+      }
+      
+      if (foiaFilters.occupancy_class) {
+        searchParams.set('occupancy_class', encodeURIComponent(foiaFilters.occupancy_class));
+      }
+      
+      // Get current view from state directly
+      const viewParam = currentView === 'table' ? 'table' : undefined;
+      if (viewParam) {
+        searchParams.set('view', viewParam);
+      }
+      
+      const newSearch = searchParams.toString();
+      const currentPath = window.location.pathname;
+      const currentSearch = window.location.search;
+      const newPath = newSearch ? `${currentPath}?${newSearch}` : currentPath;
+      
+      if (newPath !== `${currentPath}${currentSearch}`) {
+        navigate(newPath, { replace: true });
+      }
+    });
+  }, [navigate, currentView]); // Minimal stable dependencies
 
-  // Update view and sync to URL
+  // Update view and sync to URL - STABLE REFERENCE
   const updateView = useCallback((newView: 'map' | 'table') => {
     setCurrentView(newView);
-    updateURLParams(filters, newView);
-  }, [filters, updateURLParams]);
-
-  // Generate shareable URL for current state
-  const generateShareableURL = useCallback((): string => {
-    const baseURL = window.location.origin + location.pathname;
-    const searchParams = new URLSearchParams();
     
-    if (filters.city) {
-      searchParams.set('city', encodeURIComponent(filters.city));
+    // Build URL in a microtask to ensure state has settled
+    Promise.resolve().then(() => {
+      const searchParams = new URLSearchParams();
+      const currentFilters = filtersRef.current;
+      
+      if (currentFilters.city) {
+        searchParams.set('city', encodeURIComponent(currentFilters.city));
+      }
+      
+      const foiaFilters = currentFilters.foiaFilters || {};
+      if (foiaFilters.fire_sprinklers === true) {
+        searchParams.set('fire_sprinklers', 'true');
+      } else if (foiaFilters.fire_sprinklers === false) {
+        searchParams.set('fire_sprinklers', 'false');
+      }
+      
+      if (foiaFilters.zoned_by_right) {
+        searchParams.set('zoned_by_right', encodeURIComponent(foiaFilters.zoned_by_right));
+      }
+      
+      if (foiaFilters.occupancy_class) {
+        searchParams.set('occupancy_class', encodeURIComponent(foiaFilters.occupancy_class));
+      }
+      
+      if (newView === 'table') {
+        searchParams.set('view', 'table');
+      }
+      
+      const newSearch = searchParams.toString();
+      const currentPath = window.location.pathname;
+      const currentSearch = window.location.search;
+      const newPath = newSearch ? `${currentPath}?${newSearch}` : currentPath;
+      
+      if (newPath !== `${currentPath}${currentSearch}`) {
+        navigate(newPath, { replace: true });
+      }
+    });
+  }, [navigate]); // Minimal stable dependencies
+
+  // Generate shareable URL for current state - STABLE REFERENCE
+  const generateShareableURL = useCallback((): string => {
+    const baseURL = window.location.origin + window.location.pathname;
+    const searchParams = new URLSearchParams();
+    const currentFilters = filtersRef.current;
+    
+    if (currentFilters.city) {
+      searchParams.set('city', encodeURIComponent(currentFilters.city));
     }
     
-    const foiaFilters = filters.foiaFilters || {};
+    const foiaFilters = currentFilters.foiaFilters || {};
     
     if (foiaFilters.fire_sprinklers === true) {
       searchParams.set('fire_sprinklers', 'true');
@@ -180,18 +213,19 @@ export function useURLFilters() {
     
     const queryString = searchParams.toString();
     return queryString ? `${baseURL}?${queryString}` : baseURL;
-  }, [filters, currentView, location.pathname]);
+  }, [currentView]); // Minimal dependency, use window.location directly
 
-  // Check if current state has active filters
+  // Check if current state has active filters - STABLE REFERENCE
   const hasActiveFilters = useCallback((): boolean => {
-    const foiaFilters = filters.foiaFilters || {};
+    const currentFilters = filtersRef.current;
+    const foiaFilters = currentFilters.foiaFilters || {};
     return !!(
-      filters.city ||
+      currentFilters.city ||
       foiaFilters.fire_sprinklers !== null ||
       foiaFilters.zoned_by_right ||
       foiaFilters.occupancy_class
     );
-  }, [filters]);
+  }, []); // Stable reference, access filters via ref
 
   return {
     filters,
