@@ -650,39 +650,13 @@ export function PropertyPanel({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-xs text-[#6B7280] mb-1">Parcel Sq Ft</div>
-              {editingFields.has('lot_size') ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    value={tempValues.lot_size || ''}
-                    onChange={(e) => setTempValues(prev => ({ ...prev, lot_size: e.target.value ? parseInt(e.target.value) : null }))}
-                    className="text-sm flex-1"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-gray-100"
-                    onClick={() => saveEdit('lot_size')}
-                  >
-                    <Check className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#1A1A1A]">{(property.parcel_sq_ft || property.lot_size)?.toLocaleString() || 'N/A'}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-gray-100"
-                    onClick={() => startEditing('lot_size')}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[#1A1A1A]">{property.parcel_sq_ft?.toLocaleString() || 'N/A'}</span>
+                <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded">Read Only</span>
+              </div>
             </div>
             <div>
-              <div className="text-xs text-[#6B7280] mb-1">Building Sq Ft</div>
+              <div className="text-xs text-[#6B7280] mb-1">Lot Size (Sq Ft)</div>
               {editingFields.has('square_feet') ? (
                 <div className="flex items-center gap-2">
                   <Input
@@ -690,6 +664,7 @@ export function PropertyPanel({
                     value={tempValues.square_feet || ''}
                     onChange={(e) => setTempValues(prev => ({ ...prev, square_feet: e.target.value ? parseInt(e.target.value) : null }))}
                     className="text-sm flex-1"
+                    placeholder="Enter lot size"
                   />
                   <Button
                     variant="ghost"
@@ -702,7 +677,7 @@ export function PropertyPanel({
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#1A1A1A]">{property.square_feet?.toLocaleString() || 'N/A'}</span>
+                  <span className="text-sm text-[#1A1A1A]">{property.square_feet?.toLocaleString() || 'Not Set'}</span>
                   <Button
                     variant="ghost"
                     size="sm"

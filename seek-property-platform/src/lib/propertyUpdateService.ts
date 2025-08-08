@@ -264,8 +264,8 @@ export class PropertyUpdateService {
       state: dbProperty.cities?.state || 'TX',
       county: dbProperty.counties?.name || '',
       zip_code: dbProperty.zip_code || '',
-      square_feet: dbProperty.parcel_sqft || dbProperty.lot_size || null,
-      parcel_sq_ft: dbProperty.parcel_sqft || null,
+      square_feet: dbProperty.lot_size || null, // Building/lot square footage (editable)
+      parcel_sq_ft: dbProperty.parcel_sqft || null, // Parcel square footage (read-only)
       zoning_code: dbProperty.zoning_code || null,
       
       // FOIA fields mapping
