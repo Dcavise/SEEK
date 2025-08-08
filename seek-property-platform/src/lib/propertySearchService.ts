@@ -350,8 +350,8 @@ export class PropertySearchService {
       state: rawProperty.cities?.state || rawProperty.state || 'TX',
       county: rawProperty.counties?.name || rawProperty.county || '',
       zip_code: rawProperty.zip_code || '', // NEW: Direct database column
-      square_feet: rawProperty.parcel_sqft || rawProperty.lot_size || null, // NEW: Use parcel_sqft from database
-      parcel_sq_ft: rawProperty.parcel_sqft || rawProperty.lot_size || null, // NEW: Direct database column
+      square_feet: rawProperty.lot_size || null, // Lot size (editable) - maps to "Lot Size (Sq Ft)" in UI
+      parcel_sq_ft: rawProperty.parcel_sqft || null, // Parcel square footage (read-only) - maps to "Parcel Sq Ft" in UI
       property_type: 'Unknown', // Not available in current schema
       zoning_code: rawProperty.zoning_code || null, // NEW: Direct database column
       folio_int: null, // Not available in current schema
