@@ -345,10 +345,10 @@ export class PropertySearchService {
       geom: rawProperty.geom || null,
       updated_by: rawProperty.updated_by || null,
       
-      // Database column mappings with fallbacks (after schema update)
-      city: rawProperty.cities?.name || rawProperty.city || '',
+      // Database column mappings with enhanced null checks and fallbacks
+      city: rawProperty.cities?.name || rawProperty.city || 'Unknown City',
       state: rawProperty.cities?.state || rawProperty.state || 'TX',
-      county: rawProperty.counties?.name || rawProperty.county || '',
+      county: rawProperty.counties?.name || rawProperty.county || 'Unknown County',
       zip_code: rawProperty.zip_code || '', // NEW: Direct database column
       square_feet: rawProperty.lot_size || null, // Lot size (editable) - maps to "Lot Size (Sq Ft)" in UI
       parcel_sq_ft: rawProperty.parcel_sqft || null, // Parcel square footage (read-only) - maps to "Parcel Sq Ft" in UI
@@ -356,8 +356,8 @@ export class PropertySearchService {
       zoning_code: rawProperty.zoning_code || null, // NEW: Direct database column
       folio_int: null, // Not available in current schema
       
-      // FOIA fields mapping (these may be added via FOIA updates)
-      current_occupancy: rawProperty.occupancy_class, // Map occupancy_class -> current_occupancy
+      // FOIA fields mapping with null safety (these may be added via FOIA updates)
+      current_occupancy: rawProperty.occupancy_class || null, // Map occupancy_class -> current_occupancy
       fire_sprinkler_status: rawProperty.fire_sprinklers === true ? 'yes' : 
                            rawProperty.fire_sprinklers === false ? 'no' : null, // Map fire_sprinklers -> fire_sprinkler_status
       zoning_by_right: rawProperty.zoned_by_right === 'yes' ? true :

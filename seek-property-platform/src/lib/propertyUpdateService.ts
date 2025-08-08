@@ -259,10 +259,10 @@ export class PropertyUpdateService {
       geom: dbProperty.geom || null,
       updated_by: dbProperty.updated_by || null,
       
-      // Enhanced fields
-      city: dbProperty.cities?.name || '',
+      // Enhanced fields with null checks
+      city: dbProperty.cities?.name || 'Unknown City',
       state: dbProperty.cities?.state || 'TX',
-      county: dbProperty.counties?.name || '',
+      county: dbProperty.counties?.name || 'Unknown County',
       zip_code: dbProperty.zip_code || '',
       square_feet: dbProperty.lot_size || null, // Building/lot square footage (editable)
       parcel_sq_ft: dbProperty.parcel_sqft || null, // Parcel square footage (read-only)
