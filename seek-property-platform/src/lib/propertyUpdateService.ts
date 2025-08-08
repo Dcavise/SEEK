@@ -10,13 +10,24 @@
 import { supabase } from '@/lib/supabase';
 import { Property } from '@/types/property';
 
-// User ID for audit logging (in a real app, this would come from auth context)
-const SYSTEM_USER_ID = 'system'; // TODO: Replace with actual user ID from auth
+// User ID for audit logging (using UUID format for now - in real app, this would come from auth context)
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000'; // System user UUID - TODO: Replace with actual user ID from auth
+
+/**
+ * Generate a simple UUID v4
+ */
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 export interface PropertyUpdateRequest {
   id: string;
   updates: Partial<Property>;
-  sessionId?: string;
+  sessionId?: string; // Should be UUID format
 }
 
 export interface PropertyUpdateResponse {
@@ -160,9 +171,39 @@ export class PropertyUpdateService {
       }
     });
     
-    // Handle special mappings
+    // Handle special mappings from PropertyPanel UI fields to database columns
     if (updates.square_feet !== undefined) {
       dbUpdates.lot_size = updates.square_feet; // Map square_feet to lot_size
+    }
+    
+    // FOIA field mappings from PropertyPanel to database
+    if (updates.fire_sprinkler_status !== undefined) {
+      // Map fire_sprinkler_status ('yes'/'no'/'unknown') to fire_sprinklers (boolean/null)
+      if (updates.fire_sprinkler_status === 'yes') {
+        dbUpdates.fire_sprinklers = true;
+      } else if (updates.fire_sprinkler_status === 'no') {
+        dbUpdates.fire_sprinklers = false;
+      } else {
+        dbUpdates.fire_sprinklers = null; // 'unknown' maps to null
+      }
+    }
+    
+    if (updates.current_occupancy !== undefined) {
+      // Map current_occupancy to occupancy_class
+      dbUpdates.occupancy_class = updates.current_occupancy;
+    }
+    
+    if (updates.zoning_by_right !== undefined) {
+      // Map zoning_by_right values to database format
+      if (updates.zoning_by_right === true) {
+        dbUpdates.zoned_by_right = 'yes';
+      } else if (updates.zoning_by_right === false) {
+        dbUpdates.zoned_by_right = 'no';
+      } else if (updates.zoning_by_right === 'special-exemption') {
+        dbUpdates.zoned_by_right = 'special exemption'; // Database uses 'special exemption', not 'special-exemption'
+      } else {
+        dbUpdates.zoned_by_right = null;
+      }
     }
     
     // Legacy fields that don't have direct database columns are stored in a JSONB metadata field
@@ -181,6 +222,14 @@ export class PropertyUpdateService {
       // For now, we'll log this but not persist these fields
       // In the future, we could add a metadata JSONB column to store these
     }
+    
+    // Skip fields that can't be directly updated (relationships)
+    const skipFields = ['county']; // county is from relationship, can't be updated directly
+    skipFields.forEach(field => {
+      if (updates[field as keyof Property] !== undefined) {
+        console.warn(`⚠️ PropertyUpdateService: Skipping read-only field: ${field}`);
+      }
+    });
     
     return dbUpdates;
   }
@@ -262,11 +311,11 @@ export class PropertyUpdateService {
           table_name: params.tableName,
           record_id: params.recordId,
           operation: params.operation,
-          user_id: SYSTEM_USER_ID, // TODO: Replace with actual user ID
+          user_id: null, // Set to null for now - no user authentication yet
           old_values: params.oldValues,
           new_values: params.newValues,
           changed_fields: params.changedFields,
-          session_id: params.sessionId
+          session_id: params.sessionId || generateUUID() // Generate UUID if not provided
         })
         .select('id')
         .single();

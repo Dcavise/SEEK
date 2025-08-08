@@ -69,11 +69,11 @@ export function PropertyPanel({
         [field]: tempValues[field as keyof Property]
       };
       
-      // Call the database update service
+      // Call the database update service  
       const result = await PropertyUpdateService.updateProperty({
         id: property.id,
         updates,
-        sessionId: `session-${Date.now()}` // Generate simple session ID
+        sessionId: crypto.randomUUID() // Generate proper UUID for session
       });
       
       if (result.success && result.data) {
