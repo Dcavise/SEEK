@@ -1,4 +1,4 @@
-import { Copy, Edit, Check, User, XIcon, Building, HelpCircle, X, ChevronLeft, ChevronRight, UserPlus, Calendar, Clock, AlertCircle, ChevronDown  } from 'lucide-react';
+import { Copy, Edit, Check, User, XIcon, Building, HelpCircle, X, ChevronLeft, ChevronRight, UserPlus, Calendar, Clock, AlertCircle, ChevronDown, Save, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { PropertyUpdateService } from '@/lib/propertyUpdateService';
 import { Property } from '@/types/property';
 
 interface PropertyPanelProps {
@@ -38,31 +40,94 @@ export function PropertyPanel({
   onAssignAnalyst,
   onPropertyUpdate 
 }: PropertyPanelProps) {
+  const { toast } = useToast();
   const [selectedAssignee, setSelectedAssignee] = useState<string>(property?.assigned_to || 'unassigned');
   
   // Edit state management
   const [editingFields, setEditingFields] = useState<Set<string>>(new Set());
   const [tempValues, setTempValues] = useState<Partial<Property>>({});
+  const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
 
   const startEditing = (field: string) => {
     setEditingFields(prev => new Set(prev).add(field));
     setTempValues(prev => ({ ...prev, [field]: property?.[field as keyof Property] }));
   };
 
-  const saveEdit = (field: string) => {
-    if (onPropertyUpdate && tempValues[field as keyof Property] !== undefined) {
-      onPropertyUpdate({ ...property!, [field]: tempValues[field as keyof Property] });
+  const saveEdit = async (field: string) => {
+    if (!property?.id || tempValues[field as keyof Property] === undefined) {
+      return;
     }
-    setEditingFields(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(field);
-      return newSet;
-    });
-    setTempValues(prev => {
-      const newValues = { ...prev };
-      delete newValues[field as keyof Property];
-      return newValues;
-    });
+    
+    // Add field to saving state
+    setSavingFields(prev => new Set(prev).add(field));
+    
+    try {
+      console.log(`💾 Saving field ${field} with value:`, tempValues[field as keyof Property]);
+      
+      // Create updates object with just this field
+      const updates = {
+        [field]: tempValues[field as keyof Property]
+      };
+      
+      // Call the database update service
+      const result = await PropertyUpdateService.updateProperty({
+        id: property.id,
+        updates,
+        sessionId: `session-${Date.now()}` // Generate simple session ID
+      });
+      
+      if (result.success && result.data) {
+        // Update parent component with new data
+        if (onPropertyUpdate) {
+          onPropertyUpdate(result.data);
+        }
+        
+        // Show success toast
+        toast({
+          title: "Property Updated",
+          description: `${field.replace('_', ' ')} has been saved successfully.`,
+          duration: 3000
+        });
+        
+        console.log(`✅ Field ${field} saved successfully. Audit ID: ${result.auditLogId}`);
+      } else {
+        throw new Error(result.error || 'Update failed');
+      }
+      
+    } catch (error) {
+      console.error(`❌ Failed to save field ${field}:`, error);
+      
+      // Show error toast
+      toast({
+        title: "Save Failed", 
+        description: `Failed to save ${field.replace('_', ' ')}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+        duration: 5000
+      });
+      
+      // Revert to original value on error
+      setTempValues(prev => ({ ...prev, [field]: property?.[field as keyof Property] }));
+    } finally {
+      // Remove from saving state and editing state
+      setSavingFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(field);
+        return newSet;
+      });
+      
+      setEditingFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(field);
+        return newSet;
+      });
+      
+      // Clear temp value
+      setTempValues(prev => {
+        const newValues = { ...prev };
+        delete newValues[field as keyof Property];
+        return newValues;
+      });
+    }
   };
 
   const cancelEdit = (field: string) => {
@@ -699,8 +764,13 @@ export function PropertyPanel({
                     size="sm"
                     className="h-8 w-8 p-0 hover:bg-gray-100"
                     onClick={() => saveEdit('zoning_code')}
+                    disabled={savingFields.has('zoning_code')}
                   >
-                    <Check className="h-3 w-3" />
+                    {savingFields.has('zoning_code') ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3" />
+                    )}
                   </Button>
                 </div>
               ) : (
