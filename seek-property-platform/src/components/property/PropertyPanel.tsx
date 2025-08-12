@@ -674,6 +674,14 @@ export function PropertyPanel({
                   >
                     <Check className="h-3 w-3" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    onClick={() => cancelEdit('square_feet')}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
@@ -707,6 +715,14 @@ export function PropertyPanel({
                     onClick={() => saveEdit('county')}
                   >
                     <Check className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    onClick={() => cancelEdit('county')}
+                  >
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               ) : (
@@ -746,6 +762,14 @@ export function PropertyPanel({
                     ) : (
                       <Save className="h-3 w-3" />
                     )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    onClick={() => cancelEdit('zoning_code')}
+                  >
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               ) : (
