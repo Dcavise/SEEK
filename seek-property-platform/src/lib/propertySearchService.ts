@@ -151,8 +151,14 @@ export class PropertySearchService {
    * Search properties with extended FOIA filtering capabilities
    */
   async searchProperties(criteria: ExtendedFilterCriteria): Promise<SearchResult> {
-    // Validate and sanitize input
-    const sanitizedCriteria = this.validateAndSanitizeCriteria(criteria);
+    // Performance monitoring
+    const searchId = Math.random().toString(36).substr(2, 9);
+    const startTime = performance.now();
+    console.time(`🔍 PropertySearchService.searchProperties-${searchId}`);
+    
+    try {
+      // Validate and sanitize input
+      const sanitizedCriteria = this.validateAndSanitizeCriteria(criteria);
     const {
       city,
       state,
@@ -292,19 +298,39 @@ export class PropertySearchService {
     query = query.range(offset, offset + limit - 1);
 
     // Execute the query
+    console.time(`🗄️ Database query execution-${searchId}`);
     const { data: properties, error, count } = await query;
+    console.timeEnd(`🗄️ Database query execution-${searchId}`);
 
     if (error) {
+      console.timeEnd(`🔍 PropertySearchService.searchProperties-${searchId}`);
+      const endTime = performance.now();
+      console.error(`❌ Search failed after ${(endTime - startTime).toFixed(2)}ms:`, error.message);
       throw new Error(`Search failed: ${error.message}`);
     }
 
     // Calculate filter counts for UI
+    console.time(`📊 Filter counts calculation-${searchId}`);
     const filterCounts = await this.calculateFilterCounts(sanitizedCriteria);
+    console.timeEnd(`📊 Filter counts calculation-${searchId}`);
 
     const totalPages = Math.ceil((count || 0) / limit);
 
     // Transform raw database data to UI-compatible Property objects
+    console.time(`🔄 Data transformation-${searchId}`);
     const transformedProperties = (properties || []).map(rawProperty => this.transformRawPropertyToUI(rawProperty));
+    console.timeEnd(`🔄 Data transformation-${searchId}`);
+
+    // Performance summary
+    console.timeEnd(`🔍 PropertySearchService.searchProperties-${searchId}`);
+    const endTime = performance.now();
+    const totalTime = endTime - startTime;
+    console.log(`📈 Search performance summary for ${searchId}:`, {
+      totalTime: `${totalTime.toFixed(2)}ms`,
+      resultsCount: transformedProperties.length,
+      totalMatches: count || 0,
+      criteria: sanitizedCriteria
+    });
 
     return {
       properties: transformedProperties,
@@ -317,6 +343,13 @@ export class PropertySearchService {
         counts: filterCounts
       }
     };
+    
+    } catch (error) {
+      console.timeEnd(`🔍 PropertySearchService.searchProperties-${searchId}`);
+      const endTime = performance.now();
+      console.error(`💥 Search error after ${(endTime - startTime).toFixed(2)}ms:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -529,11 +562,15 @@ export class PropertySearchService {
    * Used for direct property URL access
    */
   async getPropertyById(id: string): Promise<Property | null> {
+    const startTime = performance.now();
+    console.time(`🏠 getPropertyById-${id.substr(0, 8)}`);
+    
     try {
       // Validate ID format (should be UUID)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(id)) {
         console.error('Invalid property ID format:', id);
+        console.timeEnd(`🏠 getPropertyById-${id.substr(0, 8)}`);
         return null;
       }
 
@@ -578,6 +615,9 @@ export class PropertySearchService {
       }
 
       if (!property) {
+        console.timeEnd(`🏠 getPropertyById-${id.substr(0, 8)}`);
+        const endTime = performance.now();
+        console.log(`📈 getPropertyById performance: ${(endTime - startTime).toFixed(2)}ms (property not found)`);
         return null;
       }
 
@@ -585,11 +625,18 @@ export class PropertySearchService {
       console.log('Raw property data from database:', property);
       const transformedProperty = this.transformRawPropertyToUI(property);
 
+      // Performance completion
+      console.timeEnd(`🏠 getPropertyById-${id.substr(0, 8)}`);
+      const endTime = performance.now();
+      console.log(`📈 getPropertyById performance: ${(endTime - startTime).toFixed(2)}ms for ${property.address}`);
+      
       console.log('Successfully fetched property:', transformedProperty);
       return transformedProperty;
 
     } catch (error) {
-      console.error('Error in getPropertyById:', error);
+      console.timeEnd(`🏠 getPropertyById-${id.substr(0, 8)}`);
+      const endTime = performance.now();
+      console.error(`💥 getPropertyById error after ${(endTime - startTime).toFixed(2)}ms:`, error);
       throw error;
     }
   }
