@@ -980,7 +980,7 @@ export function PropertyPanel({
               <div className="text-sm text-[#1A1A1A]">
                 {property.latitude && property.longitude 
                   ? `${property.latitude}, ${property.longitude}` 
-                  : 'N/A'}
+                  : 'Coordinates not available'}
               </div>
             </div>
           </div>

@@ -332,8 +332,8 @@ export class PropertySearchService {
       city_id: rawProperty.city_id,
       county_id: rawProperty.county_id,
       state_id: rawProperty.state_id,
-      latitude: rawProperty.latitude || 0,
-      longitude: rawProperty.longitude || 0,
+      latitude: rawProperty.latitude || null,
+      longitude: rawProperty.longitude || null,
       lot_size: rawProperty.parcel_sqft || rawProperty.lot_size, // CSV uses parcel_sqft
       owner_name: rawProperty.owner_name,
       property_value: rawProperty.property_value,
