@@ -173,3 +173,21 @@ backup-db: ## Create database backup
 # Monitoring
 watch-performance: ## Watch performance metrics in real-time
 	@. venv/bin/activate && python scripts/utilities/monitor_performance.py --watch
+
+# Project Organization
+cleanup: ## Clean up and reorganize project structure
+	@echo "🧹 Starting project structure cleanup..."
+	@. venv/bin/activate && python scripts/utilities/cleanup_project_structure.py
+	@echo "✅ Project structure cleaned"
+
+maintain: ## Check project structure and suggest improvements
+	@echo "🔍 Running project maintenance checks..."
+	@. venv/bin/activate && python tools/maintain_project_structure.py --check --report
+	@echo "✅ Maintenance check complete"
+
+auto-fix: ## Auto-fix simple project structure issues
+	@echo "🔧 Auto-fixing project structure issues..."
+	@. venv/bin/activate && python tools/maintain_project_structure.py --fix --check
+	@echo "✅ Auto-fixes applied"
+
+organize: cleanup maintain ## Full organization: cleanup + maintenance check

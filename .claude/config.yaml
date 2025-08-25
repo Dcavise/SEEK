@@ -1,0 +1,8 @@
+commands:
+  zoning:
+    description: "Database zoning permissions updater for property management system"
+    prompt_file: ".claude/prompts/zoning-updater.md"
+    examples:
+      - "Irving - A,R-1,PD2"
+      - "Fort Worth - RS-3.5,RS-5,PD"
+      - "Dallas - R-6,C-C,PUD"

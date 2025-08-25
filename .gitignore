@@ -65,6 +65,49 @@ data/NormalizeLogs/*.log
 *.tmp
 *.temp
 
+# Mass import temporary files
+MASS_*.md
+PIPELINE_*.md
+*_COMPLETE.md
+*_STATUS_REPORT.md
+*_ANALYSIS.md
+import_progress.json
+schema_analysis_comprehensive.json
+supabase_analysis_summary.json
+
+# Temporary analysis and import scripts (in root directory only)
+/analyze_*.py
+/batch_*.py
+/check_*.py
+/direct_*.py
+/optimize_*.py
+/quick_*.py
+/temp_*.py
+/test_*.py
+/verify_*.py
+/debug_*.py
+/find_*.py
+/spot_*.py
+/*_fix_*.py
+/*_import*.py
+/*_processor.py
+/*_normalizer.py
+/*_cleanup.py
+
+# Archive and temporary directories
+archive/
+temp/analysis_outputs/
+
+# SQL temp files
+*.sql
+!mvp_database_architecture.sql
+!create_critical_indexes.sql
+!schema_fixes.sql
+!add_spatial_geometry.sql
+
+# FOIA data
+FOIA/
+
 # Build artifacts
 seek-property-platform/dist/
 seek-property-platform/node_modules/
@@ -128,3 +171,5 @@ temp/
 *.sln
 *.sw?
 .vercel
+seek-property-platform/node_modules/
+seek-property-platform/node_modules/

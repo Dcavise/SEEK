@@ -20,6 +20,11 @@ interface HeaderProps {
   showViewToggle?: boolean;
   onCitySearch?: (city: string) => void;
   onFOIAFiltersChange?: (filters: FOIAFilters) => void;
+  filterCounts?: {
+    withFireSprinklers: number;
+    byOccupancyClass: Record<string, number>;
+    byZonedByRight: Record<string, number>;
+  };
 }
 
 // Memoize the PropertyFilters component to prevent unnecessary re-renders
@@ -34,7 +39,8 @@ export function Header({
   onViewToggle,
   showViewToggle = false,
   onCitySearch,
-  onFOIAFiltersChange
+  onFOIAFiltersChange,
+  filterCounts
 }: HeaderProps) {
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
@@ -223,7 +229,10 @@ export function Header({
             {/* Compact FOIA Filters - Use memoized component */}
             {onFOIAFiltersChange && (
               <div className="flex-1 min-w-0">
-                <MemoizedPropertyFilters onFiltersChange={handleFOIAFiltersChange} />
+                <MemoizedPropertyFilters 
+                  onFiltersChange={handleFOIAFiltersChange}
+                  filterCounts={filterCounts}
+                />
               </div>
             )}
           </div>

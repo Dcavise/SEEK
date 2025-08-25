@@ -239,6 +239,7 @@ const Index = () => {
         showViewToggle={showPropertiesView && !isOverloadMode}
         onCitySearch={handleCitySelected}
         onFOIAFiltersChange={handleFOIAFiltersChange}
+        filterCounts={filterCounts}
       />
 
 

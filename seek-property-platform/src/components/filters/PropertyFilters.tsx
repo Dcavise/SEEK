@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ListFilter, X, Flame, Building, MapPin, Check } from "lucide-react";
 import { type FOIAFilters } from "@/lib/propertySearchService";
 
@@ -43,9 +44,14 @@ interface ActiveFilter {
 
 interface PropertyFiltersProps {
   onFiltersChange: (filters: FOIAFilters) => void;
+  filterCounts?: {
+    withFireSprinklers: number;
+    byOccupancyClass: Record<string, number>;
+    byZonedByRight: Record<string, number>;
+  };
 }
 
-export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
+export function PropertyFilters({ onFiltersChange, filterCounts }: PropertyFiltersProps) {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [open, setOpen] = useState(false);
   
@@ -129,23 +135,52 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
     });
   }, []);
 
-  // Memoize the filter items to prevent re-renders
+  // Memoize the filter items with counts to prevent re-renders
   const filterItems = useMemo(() => ({
     fireSprinklers: [
-      { value: "true", label: "Has Sprinklers", color: "text-green-500" },
-      { value: "false", label: "No Sprinklers", color: "text-red-500" }
+      { 
+        value: "true", 
+        label: "Has Sprinklers", 
+        color: "text-green-500",
+        count: filterCounts?.withFireSprinklers || 0
+      },
+      { 
+        value: "false", 
+        label: "No Sprinklers", 
+        color: "text-red-500",
+        count: 0 // Count for "no sprinklers" would need to be calculated separately
+      }
     ],
     zonedByRight: [
-      { value: "yes", label: "Yes", displayLabel: "Zoned: Yes", color: "text-green-500" },
-      { value: "no", label: "No", displayLabel: "Zoned: No", color: "text-red-500" },
-      { value: "special exemption", label: "Special Exemption", displayLabel: "Special Exemption", color: "text-yellow-500" }
+      { 
+        value: "yes", 
+        label: "Yes", 
+        displayLabel: "Zoned: Yes", 
+        color: "text-green-500",
+        count: filterCounts?.byZonedByRight?.['yes'] || 0
+      },
+      { 
+        value: "no", 
+        label: "No", 
+        displayLabel: "Zoned: No", 
+        color: "text-red-500",
+        count: filterCounts?.byZonedByRight?.['no'] || 0
+      },
+      { 
+        value: "special exemption", 
+        label: "Special Exemption", 
+        displayLabel: "Special Exemption", 
+        color: "text-yellow-500",
+        count: filterCounts?.byZonedByRight?.['special exemption'] || 0
+      }
     ],
     occupancyClasses: OCCUPANCY_CLASSES.map(c => ({
       value: c,
       label: c,
-      displayLabel: `Class: ${c}`
+      displayLabel: `Class: ${c}`,
+      count: filterCounts?.byOccupancyClass?.[c] || 0
     }))
-  }), []);
+  }), [filterCounts]);
 
   return (
     <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -154,7 +189,7 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
         <Badge 
           key={`${filter.type}-${filter.value}`} 
           variant="secondary"
-          className="gap-1 pr-1 flex-shrink-0 text-xs h-6"
+          className="gap-1 pr-1 flex-shrink-0 text-xs h-6 mx-1"
         >
           {filter.type === "fire_sprinklers" && <Flame className="h-3 w-3" />}
           {filter.type === "zoned_by_right" && <MapPin className="h-3 w-3" />}
@@ -175,16 +210,33 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
         </Badge>
       ))}
 
-      {/* Clear All Button */}
+      {/* Clear All Button with Confirmation Dialog */}
       {activeFilters.length > 0 && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={clearAll}
-          className="h-6 text-xs px-2 flex-shrink-0"
-        >
-          Clear All
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs px-2 flex-shrink-0 mx-1"
+            >
+              Clear All
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear All Filters</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to clear all {activeFilters.length} active filter{activeFilters.length !== 1 ? 's' : ''}? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={clearAll}>
+                Clear All Filters
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Add Filter Popover */}
@@ -193,7 +245,7 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
           <Button
             variant="outline"
             size="sm"
-            className="h-6 gap-1 text-xs px-2 flex-shrink-0"
+            className="h-6 gap-1 text-xs px-2 flex-shrink-0 mx-1"
           >
             <ListFilter className="h-3 w-3" />
             {activeFilters.length === 0 ? "Filters" : `(${activeFilters.length})`}
@@ -225,9 +277,14 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
                     })}
                   >
                     <Flame className={`mr-2 h-4 w-4 ${item.color}`} />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {item.count > 0 && (
+                      <Badge variant="secondary" className="text-xs h-4 px-1 mr-2">
+                        {item.count.toLocaleString()}
+                      </Badge>
+                    )}
                     {hasFilter("fire_sprinklers", item.value) && 
-                      <Check className="ml-auto h-4 w-4" />}
+                      <Check className="h-4 w-4" />}
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -244,16 +301,23 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
                     })}
                   >
                     <MapPin className={`mr-2 h-4 w-4 ${item.color}`} />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {item.count > 0 && (
+                      <Badge variant="secondary" className="text-xs h-4 px-1 mr-2">
+                        {item.count.toLocaleString()}
+                      </Badge>
+                    )}
                     {hasFilter("zoned_by_right", item.value) && 
-                      <Check className="ml-auto h-4 w-4" />}
+                      <Check className="h-4 w-4" />}
                   </CommandItem>
                 ))}
               </CommandGroup>
 
               {/* Occupancy Class */}
               <CommandGroup heading="Occupancy Class">
-                {filterItems.occupancyClasses.map((item) => (
+                {filterItems.occupancyClasses
+                  .filter(item => item.count > 0) // Only show classes that have data
+                  .map((item) => (
                   <CommandItem
                     key={`occupancy-${item.value}`}
                     onSelect={() => applyFilter({
@@ -263,9 +327,12 @@ export function PropertyFilters({ onFiltersChange }: PropertyFiltersProps) {
                     })}
                   >
                     <Building className="mr-2 h-4 w-4" />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    <Badge variant="secondary" className="text-xs h-4 px-1 mr-2">
+                      {item.count.toLocaleString()}
+                    </Badge>
                     {hasFilter("occupancy_class", item.value) && 
-                      <Check className="ml-auto h-4 w-4" />}
+                      <Check className="h-4 w-4" />}
                   </CommandItem>
                 ))}
               </CommandGroup>

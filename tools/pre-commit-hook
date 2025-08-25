@@ -1,0 +1,77 @@
+#!/bin/bash
+# SEEK Property Platform Pre-commit Hook
+# Prevents commits with poor project structure
+
+set -e
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+cd "$PROJECT_ROOT"
+
+echo "🔍 Pre-commit: Checking project structure..."
+
+# Check for problematic files in root directory  
+problematic_files=(
+    "test_*.py" 
+    "debug_*.py"
+    "analyze_*.py"
+    "batch_*.py"
+    "quick_*.py"
+    "verify_*.py"
+    "find_*.py"
+    "spot_*.py"
+    "temp_*.py"
+    "*.log"
+    "temp_*.sql"
+    "*_analysis.json"
+    "*_results.json"
+)
+
+violations=0
+for pattern in "${problematic_files[@]}"; do
+    if ls $pattern 2>/dev/null >/dev/null; then
+        echo "❌ Found files matching '$pattern' in root directory"
+        ls $pattern 2>/dev/null
+        violations=$((violations + 1))
+    fi
+done
+
+# Check for large uncommitted analysis files
+large_files=$(find . -name "*.json" -size +1M -path "./*" -not -path "./node_modules/*" -not -path "./venv/*" 2>/dev/null || true)
+if [ ! -z "$large_files" ]; then
+    echo "❌ Found large analysis files that should be archived:"
+    echo "$large_files"
+    violations=$((violations + 1))
+fi
+
+# Check for missing essential directories
+essential_dirs=(
+    "scripts/testing"
+    "scripts/utilities/diagnostics" 
+    "archive/mass_import_process"
+    "sql/maintenance"
+    "sql/performance"
+    "sql/schema"
+    "docs/status_reports"
+)
+
+for dir in "${essential_dirs[@]}"; do
+    if [ ! -d "$dir" ]; then
+        echo "⚠️  Missing recommended directory: $dir"
+    fi
+done
+
+if [ $violations -gt 0 ]; then
+    echo ""
+    echo "🚫 Commit blocked due to project structure violations!"
+    echo ""
+    echo "To fix these issues:"
+    echo "  1. Run: make auto-fix"
+    echo "  2. Or: make cleanup" 
+    echo "  3. Then: git add . && git commit"
+    echo ""
+    echo "For manual organization, see: tools/maintain_project_structure.py"
+    exit 1
+fi
+
+echo "✅ Project structure looks good!"
+exit 0
